@@ -20,6 +20,6 @@ library
   -- other-modules:       
   other-extensions:    GADTs, OverloadedStrings, ScopedTypeVariables, KindSignatures, MultiParamTypeClasses
   build-depends:       base >=4.7 && <4.8, aeson >=0.8 && <0.9, natural-transformation >=0.2 && <0.3, 
-                       text >= 1.1 && < 1.3
+                       text >= 1.1 && < 1.3, vector >= 0.10 && < 0.11
   -- hs-source-dirs:      
   default-language:    Haskell2010
