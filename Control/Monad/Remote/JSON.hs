@@ -13,7 +13,17 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON where
+module Control.Monad.Remote.JSON (
+        -- * JSON-RPC DSL
+        RPC,
+        method,
+        notification,
+        -- * Invoke the JSON RPC Remote Monad
+        send,
+        Session(..),
+        -- * Service the JSON RPC Calls
+        server
+  ) where
 
 import Data.Aeson
 import Data.Aeson.Types
@@ -78,7 +88,7 @@ send s (Notification nm args) = do
      async s m
      return ()
 
--- | '#' is a generic alias for 'send'.
+-- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
    (#) = send
 
