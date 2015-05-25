@@ -29,6 +29,17 @@ data RPC :: * -> * where
  Method       :: Text -> [Value] ->       RPC Value
  Notification :: Text -> [Value] ->       RPC ()
 
+instance Functor RPC where
+  fmap = (<$>)
+
+instance Applicative RPC where
+  pure = Pure
+  (<*>) = Ap
+
+instance Monad RPC where
+  return = pure
+  (>>=) = Bind
+
 method :: Text -> [Value] -> RPC Value
 method = Method
 
