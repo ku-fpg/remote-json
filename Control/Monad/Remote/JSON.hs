@@ -42,10 +42,6 @@ data Session = Session
 --session :: (Value -> IO Value) -> Session
 --session = Session
 
-data Response 
-  = Success
-  | Failure Int Text
-
 send :: Session -> RPC a -> IO a
 send s (Pure a)   = return a
 send s (Bind f k) = send s f >>= send s . k
