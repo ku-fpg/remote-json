@@ -127,7 +127,9 @@ router db (Object o) = do
         p o =  (,,,) <$> o .:  "jsonrpc" 
                      <*> o .:  "method"
                      <*> o .:? "args"
-                     <*> o .:? "id"
+                     -- We parse "id" directly, because "id":null is
+                     -- not the same as having no "id" tag in JSON-RPC.
+                     <*> optional (o .: "id")
 
 server db _  = return $ Just $ invalidRequest
 
