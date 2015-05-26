@@ -11,6 +11,9 @@ License:     BSD-style (see the file LICENSE)
 Maintainer:  Andy Gill
 Stability:   Alpha
 Portability: GHC
+
+
+
 -}
 
 module Control.Monad.Remote.JSON (
@@ -21,8 +24,8 @@ module Control.Monad.Remote.JSON (
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session(..),
-        -- * Service the JSON RPC Calls
-        server
+        -- * Route the server-side JSON RPC calls
+        router
   ) where
 
 import Data.Aeson
@@ -56,11 +59,16 @@ method = Method
 notification :: Text -> [Value] -> RPC ()
 notification = Notification
 
+-- 'Session' are the representation of how to send a message,
+-- to a JSON-RPC service, where the sender chooses if they are listening
+-- for a reply.
+
 data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
   }
 
+-- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
 send s (Pure a)   = return a
 send s (Bind f k) = send s f >>= send s . k
@@ -92,8 +100,11 @@ send s (Notification nm args) = do
 instance Transformation RPC IO Session where
    (#) = send
 
-server :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
-server db (Object o) = case parseMaybe p o of
+-- | 'router' takes a list of name/function pairs,
+-- and dispatches them, using the JSON-RPC protocol.
+router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
+router db (Object o) = do
+     case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
         _ -> return $ Just $ invalidRequest
   where
@@ -128,7 +139,6 @@ errorResponse code msg theId = object
                             ]
         , "id" .= theId
         ]
-
 
 invalidRequest :: Value
 invalidRequest = errorResponse (-32600) "Invalid Request" Null
