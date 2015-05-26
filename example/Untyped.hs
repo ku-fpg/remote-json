@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Example where
+module Main where
 
 import Control.Monad        
 import Control.Monad.Remote.JSON
