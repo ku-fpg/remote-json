@@ -41,6 +41,7 @@ data RPC :: * -> * where
  Ap           :: RPC (a -> b) -> RPC a -> RPC b
  Method       :: Text -> [Value] ->       RPC Value
  Notification :: Text -> [Value] ->       RPC ()
+ Fail         :: String ->                RPC a
 
 instance Functor RPC where
   fmap f m = pure f <*> m 
@@ -52,12 +53,19 @@ instance Applicative RPC where
 instance Monad RPC where
   return = pure
   (>>=) = Bind
+  fail  = Fail
 
 method :: Text -> [Value] -> RPC Value
 method = Method
 
 notification :: Text -> [Value] -> RPC ()
 notification = Notification
+
+-- | Utility for parsing the result, or failing
+result :: (Monad m, FromJSON a) => m Value -> m a
+result m = do
+        Success r <- liftM fromJSON m
+        return r
 
 -- 'Session' are the representation of how to send a message,
 -- to a JSON-RPC service, where the sender chooses if they are listening
