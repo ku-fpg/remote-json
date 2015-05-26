@@ -40,7 +40,7 @@ data RPC :: * -> * where
  Notification :: Text -> [Value] ->       RPC ()
 
 instance Functor RPC where
-  fmap = (<$>)
+  fmap f m = pure f <*> m 
 
 instance Applicative RPC where
   pure = Pure
