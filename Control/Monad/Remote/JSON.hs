@@ -21,6 +21,7 @@ module Control.Monad.Remote.JSON (
         RPC,
         method,
         notification,
+        result,
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session(..),
@@ -28,6 +29,7 @@ module Control.Monad.Remote.JSON (
         router
   ) where
 
+import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Text(Text)
