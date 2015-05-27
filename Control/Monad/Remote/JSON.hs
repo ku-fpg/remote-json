@@ -86,7 +86,7 @@ send s (Ap f a)   = send s f <*> send s a
 send s (Method nm args) = do
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
      	       	    , "method" .= nm
-		    , "args" .= args
+		    , "params" .= args
 		    , "id" .= Null 
 		    ]
      v <- sync s m
@@ -101,7 +101,7 @@ send s (Method nm args) = do
 send s (Notification nm args) = do
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
      	       	    , "method" .= nm
-		    , "args" .= args
+		    , "params" .= args
 		    ]
      async s m
      return ()
@@ -114,9 +114,11 @@ instance Transformation RPC IO Session where
 -- and dispatches them, using the JSON-RPC protocol.
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
 router db (Object o) = do
+     print $ (o,parseMaybe p o)
      case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
-        _ -> return $ Just $ invalidRequest
+        Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
+        _ -> return $ Just $ invalidRequest Nothing
   where
         -- Handles both method and notification, depending on the id value.
         call :: Text -> [Value] -> Maybe Value -> IO (Maybe Value)
@@ -136,7 +138,7 @@ router db (Object o) = do
         p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
         p o =  (,,,) <$> o .:  "jsonrpc" 
                      <*> o .:  "method"
-                     <*> o .:? "args"
+                     <*> o .:? "params"
                      -- We parse "id" directly, because "id":null is
                      -- not the same as having no "id" tag in JSON-RPC.
                      <*> optional (o .: "id")
@@ -152,8 +154,10 @@ errorResponse code msg theId = object
         , "id" .= theId
         ]
 
-invalidRequest :: Value
-invalidRequest = errorResponse (-32600) "Invalid Request" Null
+invalidRequest :: Maybe Value -> Value
+invalidRequest e = errorResponse (-32600) "Invalid Request" $ case e of
+        Nothing -> Null
+        Just v  -> v
 
 methodNotFound :: Value -> Value
 methodNotFound = errorResponse (-32601) "Method not found"
