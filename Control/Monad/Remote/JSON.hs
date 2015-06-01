@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -11,9 +12,6 @@ License:     BSD-style (see the file LICENSE)
 Maintainer:  Andy Gill
 Stability:   Alpha
 Portability: GHC
-
-
-
 -}
 
 module Control.Monad.Remote.JSON (
@@ -29,21 +27,24 @@ module Control.Monad.Remote.JSON (
         router
   ) where
 
-import Control.Monad
-import Data.Aeson
-import Data.Aeson.Types
-import Data.Text(Text)
-import Control.Transformation
-import Control.Applicative
+import           Control.Applicative
+import           Control.Monad
+import           Control.Transformation
+
+import           Data.Aeson
+import           Data.Aeson.Types
+import           Data.Text(Text)
+import           Data.Typeable
 import qualified Data.Vector as V
 
 data RPC :: * -> * where
- Pure         :: a ->                     RPC a
- Bind         :: RPC a -> (a -> RPC b) -> RPC b
- Ap           :: RPC (a -> b) -> RPC a -> RPC b
- Method       :: Text -> [Value] ->       RPC Value
- Notification :: Text -> [Value] ->       RPC ()
- Fail         :: String ->                RPC a
+    Pure         :: a ->                     RPC a
+    Bind         :: RPC a -> (a -> RPC b) -> RPC b
+    Ap           :: RPC (a -> b) -> RPC a -> RPC b
+    Method       :: Text -> [Value] ->       RPC Value
+    Notification :: Text -> [Value] ->       RPC ()
+    Fail         :: String ->                RPC a
+  deriving Typeable
 
 instance Functor RPC where
   fmap f m = pure f <*> m 
@@ -76,7 +77,7 @@ result m = do
 data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
-  }
+  } deriving Typeable
 
 -- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
