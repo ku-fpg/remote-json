@@ -81,29 +81,29 @@ data Session = Session
 
 -- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
-send s (Pure a)   = return a
+send _ (Pure a)   = return a
 send s (Bind f k) = send s f >>= send s . k
 send s (Ap f a)   = send s f <*> send s a
 send s (Method nm args) = do
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
-     	       	    , "method" .= nm
-		    , "params" .= args
-		    , "id" .= Null 
-		    ]
+                    , "method" .= nm
+                    , "params" .= args
+                    , "id" .= Null 
+                    ]
      v <- sync s m
      let p :: Object -> Parser (Text,Value)
-         p o =  (,) <$> o .: "jsonrpc" 
-       	      	    <*> o .: "result"
+         p o =  (,) <$> o .: "jsonrpc"
+                    <*> o .: "result"
      case v of
        Object o -> case parseMaybe p o of
-	             Just ("2.0",v) -> return v
-                     _              -> return Null
+                 Just ("2.0",v') -> return v'
+                 _               -> return Null
        _ -> return Null
 send s (Notification nm args) = do
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
-     	       	    , "method" .= nm
-		    , "params" .= args
-		    ]
+                    , "method" .= nm
+                    , "params" .= args
+                    ]
      async s m
      return ()
 
@@ -137,14 +137,14 @@ router db (Object o) = do
                Nothing -> return $ Nothing
 
         p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
-        p o =  (,,,) <$> o .:  "jsonrpc" 
-                     <*> o .:  "method"
-                     <*> o .:? "params"
-                     -- We parse "id" directly, because "id":null is
-                     -- not the same as having no "id" tag in JSON-RPC.
-                     <*> optional (o .: "id")
+        p o' =  (,,,) <$> o' .:  "jsonrpc" 
+                      <*> o' .:  "method"
+                      <*> o' .:? "params"
+                      -- We parse "id" directly, because "id":null is
+                      -- not the same as having no "id" tag in JSON-RPC.
+                      <*> optional (o' .: "id")
 
-server db _  = return $ Just $ invalidRequest
+-- server db _  = return $ Just $ invalidRequest
 
 errorResponse :: Int -> Text -> Value -> Value
 errorResponse code msg theId = object 
