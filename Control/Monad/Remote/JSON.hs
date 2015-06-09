@@ -14,15 +14,16 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON (
+module Control.Monad.Remote.JSON(
         -- * JSON-RPC DSL
         RPC,
-        method,
-        notification,
+        command,
+        procedure,
         result,
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session(..),
+        defaultSession,
         -- * Route the server-side JSON RPC calls
         router
   ) where
@@ -33,17 +34,17 @@ import           Control.Transformation
 
 import           Data.Aeson
 import           Data.Aeson.Types
-import           Data.Text(Text)
+import           Data.Text(Text, append, pack)
 import           Data.Typeable
 import qualified Data.Vector as V
 
 data RPC :: * -> * where
-    Pure         :: a ->                     RPC a
-    Bind         :: RPC a -> (a -> RPC b) -> RPC b
-    Ap           :: RPC (a -> b) -> RPC a -> RPC b
-    Method       :: Text -> [Value] ->       RPC Value
-    Notification :: Text -> [Value] ->       RPC ()
-    Fail         :: String ->                RPC a
+    Pure         :: a ->                              RPC a
+    Bind         :: RPC a -> (a -> RPC b) ->          RPC b
+    Ap           :: RPC (a -> b) -> RPC a ->          RPC b
+    Procedure       :: Text -> [Value] -> Maybe Value -> RPC Value
+    Command :: Text -> [Value] ->                RPC ()
+    Fail         :: String ->                         RPC a
   deriving Typeable
 
 instance Functor RPC where
@@ -58,11 +59,11 @@ instance Monad RPC where
   (>>=) = Bind
   fail  = Fail
 
-method :: Text -> [Value] -> RPC Value
-method = Method
+command :: Text -> [Value] -> RPC ()
+command nm args = Command nm args 
 
-notification :: Text -> [Value] -> RPC ()
-notification = Notification
+procedure :: Text -> [Value] -> Value -> RPC Value
+procedure nm args id= Procedure nm args (Just id) 
 
 -- | Utility for parsing the result, or failing
 result :: (Monad m, FromJSON a) => m Value -> m a
@@ -77,29 +78,58 @@ result m = do
 data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
+  , queue :: [Value]
   } deriving Typeable
 
+defaultSession = Session {sync=fail "Session sync method not defined",async=fail "Session async method not defined",queue=[]}
 -- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
 send _ (Pure a)   = return a
 send s (Bind f k) = send s f >>= send s . k
 send s (Ap f a)   = send s f <*> send s a
-send s (Method nm args) = do
+
+send s (Procedure nm args id) = do
+-- TODO remove id from Procedure and generate unique ID here 
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
                     , "method" .= nm
                     , "params" .= args
-                    , "id" .= Null 
+                    , "id" .= id 
                     ]
      v <- sync s m
-     let p :: Object -> Parser (Text,Value)
-         p o =  (,) <$> o .: "jsonrpc"
+     let p :: Object -> Parser (Text,Value, Maybe Value)
+         p o =  (,,) <$> o .: "jsonrpc"
                     <*> o .: "result"
+                    <*> o .: "id"
+
+     let p2 :: Object -> Parser (Text,Value)
+         p2 o =  (,) <$> o .: "jsonrpc"
+                     <*> o .: "error"
+
+     let p3 :: Object -> Parser (Value,Value)
+         p3 o =  (,) <$> o .: "code"
+                     <*> o .: "message"
+     let package = (append . (flip append (" ")) . pack . show)
+     let handleError:: Object -> IO Value
+         handleError o = do putStr "Error: "
+                            case parseMaybe p3 o of
+                              Just ((Number code),(String mesg)) -> 
+                                  -- Create error message
+                                  return $ String $ package code mesg
+                              _  -> return Null
      case v of
        Object o -> case parseMaybe p o of
-                 Just ("2.0",v') -> return v'
-                 _               -> return Null
+                 Just ("2.0",v', retId) -> do print o
+                                              if retId == id then
+                                                 putStrLn "Same ID"
+                                              else
+                                                 putStrLn "Different ID"
+                                              return v'
+                 _               -> case parseMaybe p2 o of
+                                     Just("2.0",(Object v')) -> handleError v'  
+                                      
+                                     _              -> do return Null
        _ -> return Null
-send s (Notification nm args) = do
+send s (Command nm args) = do
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
                     , "method" .= nm
                     , "params" .= args
@@ -134,7 +164,8 @@ router db (Object o) = do
         call nm args Nothing = case lookup nm db of
                Just fn -> do _ <- fn args
                              return $ Nothing
-               Nothing -> return $ Nothing
+               Nothing -> do fail "Method: "++nm++" not found"
+                             return $ Nothing
 
         p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
         p o' =  (,,,) <$> o' .:  "jsonrpc" 

@@ -19,7 +19,7 @@ main = do
         t <- send s $ do
                 say "Hello!"
                 say "Hello!"
-                t <- temperature
+                t <- temperature 7
                 return t
         print t                        
         

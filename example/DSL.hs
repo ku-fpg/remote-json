@@ -6,7 +6,7 @@
 module DSL (temperature, say, send, Session(..)) where
         
 import Control.Monad        
-import qualified Control.Monad.Remote.JSON as R
+import qualified Control.Monad.Remote.JSON_Strong as R
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -22,17 +22,17 @@ newtype RPC a = RPC (R.RPC a)
   deriving (Monad, Applicative, Functor)
 
 
-method :: FromJSON a => Text -> [Value] -> RPC a
-method nm = RPC . R.result . R.method nm
+procedure :: FromJSON a => Text -> [Value] -> Value ->RPC a
+procedure nm args id = (RPC . R.result) (R.procedure nm args id)
 
-notification :: Text -> [Value] -> RPC ()
-notification nm = RPC . R.notification nm
+command :: Text -> [Value] -> RPC ()
+command nm = RPC . R.command nm
 
-temperature :: RPC Int
-temperature = method "temperature" []
+temperature ::Int -> RPC Int
+temperature id = procedure "temperature" [] (toJSON id) 
                        
 say :: Text -> RPC ()
-say msg = notification "say" [toJSON msg]
+say msg = command "say" [toJSON msg]
 
 send :: Session -> RPC a -> IO a
 send (Session s) (RPC m) = R.send s m
