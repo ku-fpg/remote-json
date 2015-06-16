@@ -3,7 +3,7 @@
 module Main where
 
 import Control.Monad        
-import Control.Monad.Remote.JSON_Strong
+import Control.Monad.Remote.JSON
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -15,10 +15,11 @@ import System.Random
 import Server
 
 main = do
-        t <- send session $ do
+        s <- session
+        t <- send s $ do
                 command "say" [String "Hello!"]
                 command "say" [String "Hello!"]
-                t <- procedure "temperture" [] (toJSON (5::Int))
+                t <- procedure "temperature" [] 
                 return t
-        print t                        
+        print t                      
         

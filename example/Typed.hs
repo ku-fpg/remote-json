@@ -15,12 +15,14 @@ import DSL
 import Server
 
 main = do
-        let s = Session session
-        t <- send s $ do
+        s <- session
+        ts <- send (Session s) $ do
                 say "Hello!"
                 say "Hello!"
-                t <- temperature 7
-                return t
-        print t                        
+                t1 <- temperature
+                t2 <- temperature
+                t3 <- temperature
+                return [t1,t2,t3]
+        print ts                       
         
 

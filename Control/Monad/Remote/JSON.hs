@@ -31,10 +31,11 @@ module Control.Monad.Remote.JSON(
 import           Control.Applicative
 import           Control.Monad
 import           Control.Transformation
+import           Control.Concurrent.MVar
 
 import           Data.Aeson
 import           Data.Aeson.Types
-import           Data.Text(Text, append, pack)
+import           Data.Text(Text, append, pack, unpack)
 import           Data.Typeable
 import qualified Data.Vector as V
 
@@ -42,7 +43,7 @@ data RPC :: * -> * where
     Pure         :: a ->                              RPC a
     Bind         :: RPC a -> (a -> RPC b) ->          RPC b
     Ap           :: RPC (a -> b) -> RPC a ->          RPC b
-    Procedure       :: Text -> [Value] -> Maybe Value -> RPC Value
+    Procedure       :: Text -> [Value] -> RPC Value
     Command :: Text -> [Value] ->                RPC ()
     Fail         :: String ->                         RPC a
   deriving Typeable
@@ -62,8 +63,8 @@ instance Monad RPC where
 command :: Text -> [Value] -> RPC ()
 command nm args = Command nm args 
 
-procedure :: Text -> [Value] -> Value -> RPC Value
-procedure nm args id= Procedure nm args (Just id) 
+procedure :: Text -> [Value] -> RPC Value
+procedure nm args = Procedure nm args  
 
 -- | Utility for parsing the result, or failing
 result :: (Monad m, FromJSON a) => m Value -> m a
@@ -79,21 +80,28 @@ data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
   , queue :: [Value]
+  , session_id :: MVar Value
   } deriving Typeable
 
-defaultSession = Session {sync=fail "Session sync method not defined",async=fail "Session async method not defined",queue=[]}
+defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
+defaultSession synch asynch= do id <- newMVar (Number 0)
+                                return Session {sync=synch,async=asynch,queue=[], session_id= id}
 -- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
 send _ (Pure a)   = return a
 send s (Bind f k) = send s f >>= send s . k
 send s (Ap f a)   = send s f <*> send s a
 
-send s (Procedure nm args id) = do
--- TODO remove id from Procedure and generate unique ID here 
+send s (Procedure nm args) = do
+     let mvar = session_id s
+     (Number tmp) <- takeMVar mvar
+     let sessionId = Number (tmp +1)
+     putMVar mvar sessionId
+
      let m = object [ "jsonrpc" .= ("2.0" :: Text)
                     , "method" .= nm
                     , "params" .= args
-                    , "id" .= id 
+                    , "id" .= sessionId
                     ]
      v <- sync s m
      let p :: Object -> Parser (Text,Value, Maybe Value)
@@ -118,8 +126,9 @@ send s (Procedure nm args id) = do
                               _  -> return Null
      case v of
        Object o -> case parseMaybe p o of
-                 Just ("2.0",v', retId) -> do print o
-                                              if retId == id then
+                 Just ("2.0",v', (Just retId)) -> do
+                                              print o
+                                              if retId == sessionId then
                                                  putStrLn "Same ID"
                                               else
                                                  putStrLn "Different ID"
@@ -164,7 +173,7 @@ router db (Object o) = do
         call nm args Nothing = case lookup nm db of
                Just fn -> do _ <- fn args
                              return $ Nothing
-               Nothing -> do fail "Method: "++nm++" not found"
+               Nothing -> do fail $ "Method: "++(unpack nm)++" not found"
                              return $ Nothing
 
         p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
