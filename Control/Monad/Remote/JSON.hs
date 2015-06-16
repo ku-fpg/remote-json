@@ -89,7 +89,11 @@ defaultSession synch asynch= do id <- newMVar (Number 0)
                                 return Session {sync=synch,async=asynch,queue=q, session_id= id}
 -- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
-send _ (Pure a)   = return a
+send s (Pure a)   = do let qmvar = queue s
+                       q <- takeMVar qmvar
+                       sequence_ $ map (async s) q
+                       putMVar qmvar []
+                       return a
 send s (Bind f k) = send s f >>= send s . k
 send s (Ap f a)   = send s f <*> send s a
 
@@ -154,9 +158,7 @@ send s (Command nm args) = do
                     , "params" .= args
                     ]
        putMVar mvar (q++[m])
-{-     async s m
-     return ()
--}
+
 -- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
    (#) = send

@@ -22,6 +22,7 @@ main = do
                 t1 <- temperature
                 t2 <- temperature
                 t3 <- temperature
+                say "Howdy"
                 return [t1,t2,t3]
         print ts                       
         
