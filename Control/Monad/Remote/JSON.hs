@@ -79,13 +79,14 @@ result m = do
 data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
-  , queue :: [Value]
-  , session_id :: MVar Value
+  , queue :: MVar [Value]
+  , session_id :: MVar Value -- Int
   } deriving Typeable
 
 defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
 defaultSession synch asynch= do id <- newMVar (Number 0)
-                                return Session {sync=synch,async=asynch,queue=[], session_id= id}
+                                q  <- newMVar []
+                                return Session {sync=synch,async=asynch,queue=q, session_id= id}
 -- 'send' the JSON-RPC call, using a weak remote monad.
 send :: Session -> RPC a -> IO a
 send _ (Pure a)   = return a
@@ -93,6 +94,13 @@ send s (Bind f k) = send s f >>= send s . k
 send s (Ap f a)   = send s f <*> send s a
 
 send s (Procedure nm args) = do
+     -- Send Queue of async
+     let qmvar = queue s
+     q <- takeMVar qmvar
+     
+     sequence_ $ map (async s) q 
+     putMVar qmvar []
+ 
      let mvar = session_id s
      (Number tmp) <- takeMVar mvar
      let sessionId = Number (tmp +1)
@@ -129,23 +137,26 @@ send s (Procedure nm args) = do
                  Just ("2.0",v', (Just retId)) -> do
                                               print o
                                               if retId == sessionId then
-                                                 putStrLn "Same ID"
+                                                 return v'
                                               else
-                                                 putStrLn "Different ID"
-                                              return v'
+                                                 fail "ID's didn't match"
                  _               -> case parseMaybe p2 o of
                                      Just("2.0",(Object v')) -> handleError v'  
                                       
                                      _              -> do return Null
        _ -> return Null
 send s (Command nm args) = do
-     let m = object [ "jsonrpc" .= ("2.0" :: Text)
+       let mvar = queue s
+       q <- takeMVar mvar
+
+       let m = object [ "jsonrpc" .= ("2.0" :: Text)
                     , "method" .= nm
                     , "params" .= args
                     ]
-     async s m
+       putMVar mvar (q++[m])
+{-     async s m
      return ()
-
+-}
 -- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
    (#) = send
