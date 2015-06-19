@@ -87,24 +87,29 @@ defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
 defaultSession synch asynch= do id <- newMVar (Number 0)
                                 q  <- newMVar []
                                 return Session {sync=synch,async=asynch,queue=q, session_id= id}
--- 'send' the JSON-RPC call, using a weak remote monad.
-send :: Session -> RPC a -> IO a
-send s (Pure a)   = do let qmvar = queue s
-                       q <- takeMVar qmvar
-                       sequence_ $ map (async s) q
-                       putMVar qmvar []
-                       return a
-send s (Bind f k) = send s f >>= send s . k
-send s (Ap f a)   = send s f <*> send s a
 
-send s (Procedure nm args) = do
+send :: Session ->RPC a -> IO a
+send s x = do val <- send' s x
+              flush s
+              return val
+
+flush :: Session -> IO ()
+flush s = do let qmvar = queue s
+             q <- takeMVar qmvar
+             sequence_ $ map (async s) q
+             putMVar qmvar []
+
+
+-- 'send' the JSON-RPC call, using a weak remote monad.
+send' :: Session -> RPC a -> IO a
+send' s (Pure a)   = do flush s
+                        return a
+send' s (Bind f k) = send' s f >>= send' s . k
+send' s (Ap f a)   = send' s f <*> send' s a
+
+send' s (Procedure nm args) = do
      -- Send Queue of async
-     let qmvar = queue s
-     q <- takeMVar qmvar
-     
-     sequence_ $ map (async s) q 
-     putMVar qmvar []
- 
+     flush s
      let mvar = session_id s
      (Number tmp) <- takeMVar mvar
      let sessionId = Number (tmp +1)
@@ -149,7 +154,7 @@ send s (Procedure nm args) = do
                                       
                                      _              -> do return Null
        _ -> return Null
-send s (Command nm args) = do
+send' s (Command nm args) = do
        let mvar = queue s
        q <- takeMVar mvar
 
@@ -161,7 +166,7 @@ send s (Command nm args) = do
 
 -- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
-   (#) = send
+   (#) = send'
 
 -- | 'router' takes a list of name/function pairs,
 -- and dispatches them, using the JSON-RPC protocol.
