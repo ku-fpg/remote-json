@@ -3,10 +3,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- Example of a typed DSL
-module DSL (temperature, say, send, Session(..)) where
+module DSL (temperature, say, fib, send, Session(..)) where
         
 import Control.Monad        
-import qualified Control.Monad.Remote.JSON as R
+import qualified Control.Monad.Remote.JSON.Strong as R
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -33,6 +33,10 @@ temperature = procedure "temperature" []
                        
 say :: Text -> RPC ()
 say msg = command "say" [toJSON msg]
+
+fib :: Int -> RPC Int
+fib x = procedure "fib" [toJSON x]
+
 
 send :: Session -> RPC a -> IO a
 send (Session s) (RPC m) = R.send s m

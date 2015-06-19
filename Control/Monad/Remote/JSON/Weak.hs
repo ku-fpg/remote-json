@@ -14,7 +14,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON(
+module Control.Monad.Remote.JSON.Weak(
         -- * JSON-RPC DSL
         RPC,
         command,
@@ -79,37 +79,21 @@ result m = do
 data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
-  , queue :: MVar [Value]
   , session_id :: MVar Value -- Int
   } deriving Typeable
 
 defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
 defaultSession synch asynch= do id <- newMVar (Number 0)
-                                q  <- newMVar []
-                                return Session {sync=synch,async=asynch,queue=q, session_id= id}
-
-send :: Session ->RPC a -> IO a
-send s x = do val <- send' s x
-              flush s
-              return val
-
-flush :: Session -> IO ()
-flush s = do let qmvar = queue s
-             q <- takeMVar qmvar
-             sequence_ $ map (async s) q
-             putMVar qmvar []
+                                return Session {sync=synch,async=asynch, session_id= id}
 
 
 -- 'send' the JSON-RPC call, using a weak remote monad.
-send' :: Session -> RPC a -> IO a
-send' s (Pure a)   = do flush s
-                        return a
-send' s (Bind f k) = send' s f >>= send' s . k
-send' s (Ap f a)   = send' s f <*> send' s a
+send :: Session -> RPC a -> IO a
+send s (Pure a)   = return a
+send s (Bind f k) = send s f >>= send s . k
+send s (Ap f a)   = send s f <*> send s a
 
-send' s (Procedure nm args) = do
-     -- Send Queue of async
-     flush s
+send s (Procedure nm args) = do
      let mvar = session_id s
      (Number tmp) <- takeMVar mvar
      let sessionId = Number (tmp +1)
@@ -154,16 +138,12 @@ send' s (Procedure nm args) = do
                                       
                                      _              -> do return Null
        _ -> return Null
-send' s (Command nm args) = do
-       let mvar = queue s
-       q <- takeMVar mvar
-
+send s (Command nm args) = do
        let m = object [ "jsonrpc" .= ("2.0" :: Text)
                     , "method" .= nm
                     , "params" .= args
                     ]
-       putMVar mvar (q++[m])
-
+       async s m
 -- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
    (#) = send

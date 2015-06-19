@@ -3,7 +3,7 @@
 module Server (session) where
 
 import Control.Monad        
-import Control.Monad.Remote.JSON
+import Control.Monad.Remote.JSON.Weak
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -18,6 +18,7 @@ session = defaultSession (fmap (fromMaybe Null) . router db) (void . router db)
 db :: [(Text, [Value] -> IO Value)]
 db = [ ("say", say) 
      , ("temperature", temperature)
+     , ("fib", fib)
      ]
   where
         say :: [Value] -> IO Value
@@ -29,3 +30,10 @@ db = [ ("say", say)
                 t <- randomRIO (50, 100 :: Int)
                 IO.putStr $ "temperature: "
                 return $ toJSON t
+
+        fib :: [Value] -> IO Value
+        fib [Number x] = return $ toJSON (fibhelper x :: Int)
+
+        fibhelper x
+                  |x <= 1 = 1
+                  |otherwise = fibhelper (x-2) + fibhelper (x-1)
