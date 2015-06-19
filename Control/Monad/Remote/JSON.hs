@@ -166,7 +166,7 @@ send' s (Command nm args) = do
 
 -- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
-   (#) = send'
+   (#) = send
 
 -- | 'router' takes a list of name/function pairs,
 -- and dispatches them, using the JSON-RPC protocol.
