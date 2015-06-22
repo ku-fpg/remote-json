@@ -22,20 +22,20 @@ newtype RPC a = RPC (R.RPC a)
   deriving (Monad, Applicative, Functor)
 
 
-procedure :: FromJSON a => Text -> [Value] -> RPC a
-procedure nm args = (RPC . R.result) (R.procedure nm args)
+method :: FromJSON a => Text -> [Value] -> RPC a
+method nm args = (RPC . R.result) (R.method nm args)
 
-command :: Text -> [Value] -> RPC ()
-command nm = RPC . R.command nm
+notification :: Text -> [Value] -> RPC ()
+notification nm = RPC . R.notification nm
 
 temperature :: RPC Int
-temperature = procedure "temperature" [] 
+temperature = method "temperature" [] 
                        
 say :: Text -> RPC ()
-say msg = command "say" [toJSON msg]
+say msg = notification "say" [toJSON msg]
 
 fib :: Int -> RPC Int
-fib x = procedure "fib" [toJSON x]
+fib x = method "fib" [toJSON x]
 
 
 send :: Session -> RPC a -> IO a

@@ -17,9 +17,9 @@ import Server
 main = do
         s <- session
         t <- send s $ do
-                command "say" [String "Hello!"]
-                command "say" [String "Hello!"]
-                t <- procedure "temperature" [] 
+                notification "say" [String "Hello!"]
+                notification "say" [String "Hello!"]
+                t <- method "temperature" [] 
                 return t
         print t                      
         
