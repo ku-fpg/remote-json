@@ -17,8 +17,8 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Weak(
         -- * JSON-RPC DSL
         RPC,
-        command,
-        procedure,
+        method,
+        notification,
         result,
         -- * Invoke the JSON RPC Remote Monad
         send,
@@ -60,11 +60,14 @@ instance Monad RPC where
   (>>=) = Bind
   fail  = Fail
 
-command :: Text -> [Value] -> RPC ()
-command nm args = Command nm args 
+-- We use the terms method and notification because this is the terminology
+-- used by JSON-RPC. They *are* remote monad procedures and commands.
 
-procedure :: Text -> [Value] -> RPC Value
-procedure nm args = Procedure nm args  
+method :: Text -> [Value] -> RPC Value
+method nm args = Procedure nm args  
+
+notification :: Text -> [Value] -> RPC () 
+notification nm args = Command nm args 
 
 -- | Utility for parsing the result, or failing
 result :: (Monad m, FromJSON a) => m Value -> m a
