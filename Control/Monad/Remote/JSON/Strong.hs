@@ -4,6 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 
 {-|
 Module:      Control.Monad.Remote.JSON where
@@ -79,6 +80,7 @@ result m = do
 -- to a JSON-RPC service, where the sender chooses if they are listening
 -- for a reply.
 
+{-
 data Session = Session
   { sync  :: Value -> IO Value
   , async :: Value -> IO ()
@@ -86,11 +88,91 @@ data Session = Session
   , session_id :: MVar Value -- Int
   } deriving Typeable
 
+
 defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
 defaultSession synch asynch= do id <- newMVar (Number 0)
                                 q  <- newMVar []
                                 return Session {sync=synch,async=asynch,queue=q, session_id= id}
+-}
 
+data SessionAPI :: * -> * where
+   Sync  :: Value -> SessionAPI Value
+   Async :: Value -> SessionAPI ()
+
+
+newtype Session = Session(forall a. (SessionAPI a) -> IO a)
+
+defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
+defaultSession sync async = do
+      id <- newMVar (Number 0)
+      q  <- newMVar []
+      let flush :: IO ()
+          flush = do cmds <- takeMVar q
+                     sequence_ $ map (async) cmds
+                     putMVar q []
+
+      let interp :: SessionAPI a -> IO a
+          interp (Sync v) = do flush 
+                               sync v
+          interp (Async v) = do cmds <- takeMVar q
+                                putMVar q (cmds ++ [v]) 
+      return (Session interp)
+
+send :: Session -> RPC a -> IO a
+send _ (Pure a) = return a
+send s (Bind f k) = send s f >>= send s . k
+send s (Ap f a) = send s f <*> send s a
+send (Session interp) (Procedure nm args) = do
+      let m = object [ "jsonrpc" .= ("2.0" :: Text)
+                     , "method" .= nm
+                     , "params" .= args
+                     , "id" .= Null
+                     ]
+      v <- interp (Sync m)
+      let p :: Object -> Parser (Text,Value, Maybe Value)
+          p o =  (,,) <$> o .: "jsonrpc"
+                      <*> o .: "result"
+                      <*> o .: "id"
+
+      let p2 :: Object -> Parser (Text,Value)
+          p2 o =  (,) <$> o .: "jsonrpc"
+                     <*> o .: "error"
+
+      let p3 :: Object -> Parser (Value,Value)
+          p3 o =  (,) <$> o .: "code"
+                     <*> o .: "message"
+      let package = (append . (flip append (" ")) . pack . show)
+      let handleError:: Object -> IO Value
+          handleError o = do putStr "Error: "
+                             case parseMaybe p3 o of
+                               Just ((Number code),(String mesg)) ->
+                                   -- Create error message
+                                   return $ String $ package code mesg
+                               _  -> return Null
+      case v of
+        Object o -> case parseMaybe p o of
+                  Just ("2.0",v', _) -> do
+                                               print o
+                                --               if retId == sessionId then
+                                               return v'
+                                --               else
+                                --                  fail "ID's didn't match"
+                  _               -> case parseMaybe p2 o of
+                                      Just("2.0",(Object v')) -> handleError v'
+
+                                      _              -> do return Null
+        _ -> return Null
+
+
+send (Session interp) (Command nm args) = do
+      let m = object [ "jsonrpc" .= ("2.0" :: Text)
+                     , "method" .= nm
+                     , "params" .= args
+                     ]
+      interp (Async m)  
+
+
+{-
 send :: Session ->RPC a -> IO a
 send s x = do val <- send' s x
               flush s
@@ -170,9 +252,10 @@ send' s (Command nm args) = do
 -- | Allow 'Session' to use '(#)' as a generic alias for 'send'.
 instance Transformation RPC IO Session where
    (#) = send
-
+-}
 -- | 'router' takes a list of name/function pairs,
 -- and dispatches them, using the JSON-RPC protocol.
+
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
 router db (Object o) = do
      print $ (o,parseMaybe p o)
