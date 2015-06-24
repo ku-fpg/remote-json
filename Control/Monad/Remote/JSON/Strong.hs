@@ -24,6 +24,7 @@ module Control.Monad.Remote.JSON.Strong(
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session(..),
+        RemoteType,
         defaultSession,
         -- * Route the server-side JSON RPC calls
         router
@@ -86,7 +87,9 @@ type CommandList = [Value]
 type SessionID = Int
 type MyState = (CommandList, SessionID) 
 
-newtype Session = Session(forall a. (SessionAPI a) -> IO a)
+data RemoteType = Strong | Weak
+
+data Session = Session RemoteType (forall a. (SessionAPI a) -> IO a)
 
 defaultSession :: (Value->IO Value) -> (Value->IO ())-> IO(Session)
 defaultSession sync async = do
@@ -94,24 +97,27 @@ defaultSession sync async = do
           interp (Sync v) = sync v
           interp (Async v) = sequence_ $ map (async) v
 
-      return (Session interp)
+      return (Session Strong interp)
 
 send :: Session -> RPC a -> IO a
-send (Session interp) v = do (a,s)<-runStateT (send' (Session interp) v) ([],1) 
-                             case s of 
-                                 ([],_) -> return a
-                                 (xs,_) -> do interp (Async xs)
-                                              return a 
+send (Session t interp) v = do 
+         case t of
+           Weak   -> evalStateT (send' (Session t interp) v) ([],1)
+           Strong -> do (a,s)<-runStateT (send' (Session t interp) v) ([],1) 
+                        case s of 
+                          ([],_) -> return a
+                          (xs,_) -> do interp (Async xs)
+                                       return a 
 
 
 send' :: Session -> RPC a -> StateT MyState IO a
 send' _ (Pure a) = return a
 send' s (Bind f k) = send' s f >>= send' s . k
 send' s (Ap f a) = send' s f <*> send' s a
-send' (Session interp) (Procedure nm args) = do
+send' (Session t interp) (Procedure nm args) = do
+      
       (q,sessionId) <- get
-
-      liftIO $ interp (Async q) 
+      when (q /= []) $ liftIO $ interp (Async q) 
       
       put ([],sessionId + 1)
 
@@ -157,13 +163,15 @@ send' (Session interp) (Procedure nm args) = do
         _ -> return Null
 
 
-send' (Session interp) (Command nm args) = do
+send' (Session t interp) (Command nm args) = do
       let m = object [ "jsonrpc" .= ("2.0" :: Text)
                      , "method" .= nm
                      , "params" .= args
                      ]
-      (list, id)<-get 
-      put (list ++ [m], id) 
+      case t of 
+         Strong -> do (list, id)<-get 
+                      put (list ++ [m], id) 
+         Weak -> liftIO $ interp (Async [m]) 
 
 
 -- | 'router' takes a list of name/function pairs,
@@ -171,7 +179,7 @@ send' (Session interp) (Command nm args) = do
 
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
 router db (Object o) = do
-     print $ (o,parseMaybe p o)
+  --   print $ (o,parseMaybe p o)
      case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
         Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
