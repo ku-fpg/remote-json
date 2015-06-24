@@ -122,7 +122,7 @@ send' (Session interp) (Procedure nm args) = do
                      ]
 
       v <- liftIO $ interp (Sync m)
-      liftIO $ print v
+
       let p :: Object -> Parser (Text,Value, Maybe Value)
           p o =  (,,) <$> o .: "jsonrpc"
                       <*> o .: "result"
@@ -146,7 +146,6 @@ send' (Session interp) (Procedure nm args) = do
       case v of
         Object o -> case parseMaybe p o of
                   Just ("2.0",v', (Just retId)) -> do
-                                               liftIO $ print o
                                                if retId == (toJSON sessionId) then
                                                  return v'
                                                else
