@@ -12,7 +12,7 @@ import Data.Text (Text)
 import qualified Data.Text.IO as IO
 import System.Random
 
-session :: IO(Session) --   sync                                async
+session :: Session --   sync                                async
 session = defaultSession Strong (fmap (fromMaybe Null) . router db) (void . router db)
 
 db :: [(Text, [Value] -> IO Value)]

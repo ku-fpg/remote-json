@@ -92,13 +92,13 @@ data RemoteType = Strong | Weak
 
 data Session = Session RemoteType (forall a. (SessionAPI a) -> IO a)
 
-defaultSession :: RemoteType -> (Value->IO Value) -> (Value->IO ())-> IO(Session)
+defaultSession :: RemoteType -> (Value->IO Value) -> (Value->IO ())-> Session
 defaultSession t sync async = do
       let interp :: SessionAPI a -> IO a
           interp (Sync v) = sync v
-          interp (Async v) = sequence_ $ map (async) v
+          interp (Async vs) = sequence_ $ map (async) vs
 
-      return (Session t interp)
+      (Session t interp)
 
 send :: Session -> RPC a -> IO a
 send (Session t interp) v = do 

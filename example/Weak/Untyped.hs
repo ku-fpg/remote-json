@@ -15,8 +15,7 @@ import System.Random
 import Server
 
 main = do
-        s <- session
-        t <- send s $ do
+        t <- send session $ do
                 notification "say" [String "Hello!"]
                 notification "say" [String "Hello!"]
                 t <- method "temperature" [] 

@@ -15,8 +15,7 @@ import DSL
 import Server
 
 main = do
-        s <- session
-        ts <- send (Session s) $ do
+        ts <- send (Session session) $ do
                 say "Hello!"
                 say "Hello!"
                 t1 <- temperature
