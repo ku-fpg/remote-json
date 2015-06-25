@@ -14,8 +14,6 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Control.Monad.Remote.JSON
-                       Control.Monad.Remote.JSON.Strong
-                       Control.Monad.Remote.JSON.Weak                                      
                        
   -- other-modules:       
   build-depends:       aeson                  >= 0.8  && < 0.10

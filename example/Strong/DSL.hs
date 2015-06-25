@@ -6,7 +6,7 @@
 module DSL (temperature, say, fib, send, Session(..)) where
         
 import Control.Monad        
-import qualified Control.Monad.Remote.JSON.Strong as R
+import qualified Control.Monad.Remote.JSON as R
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson

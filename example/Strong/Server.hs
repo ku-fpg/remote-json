@@ -3,7 +3,7 @@
 module Server (session) where
 
 import Control.Monad        
-import Control.Monad.Remote.JSON.Strong
+import Control.Monad.Remote.JSON
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -13,7 +13,7 @@ import qualified Data.Text.IO as IO
 import System.Random
 
 session :: IO(Session) --   sync                                async
-session = defaultSession (fmap (fromMaybe Null) . router db) (void . router db)
+session = defaultSession Strong (fmap (fromMaybe Null) . router db) (void . router db)
 
 db :: [(Text, [Value] -> IO Value)]
 db = [ ("say", say) 

@@ -3,7 +3,7 @@
 module Main where
 
 import Control.Monad        
-import Control.Monad.Remote.JSON.Weak
+import Control.Monad.Remote.JSON
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
