@@ -20,9 +20,9 @@ main = do
                 say "Hello!"
                 t1 <- temperature
                 t2 <- temperature
-                t3 <- temperature
+                f3 <- fib 5
                 say "Howdy"
-                return [t1,t2,t3]
+                return [t1,t2,f3]
         print ts                       
         
 

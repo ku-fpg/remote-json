@@ -81,7 +81,7 @@ result m = do
 
 data SessionAPI :: * -> * where
    Sync  :: Value -> SessionAPI Value
-   Async :: [Value] -> SessionAPI ()
+   Async :: Value -> SessionAPI ()
 
 type CommandList = [Value]
 type SessionID = Int
@@ -96,7 +96,7 @@ defaultSession :: RemoteType -> (Value->IO Value) -> (Value->IO ())-> Session
 defaultSession t sync async = do
       let interp :: SessionAPI a -> IO a
           interp (Sync v) = sync v
-          interp (Async vs) = sequence_ $ map (async) vs
+          interp (Async vs) = async vs
 
       (Session t interp)
 
@@ -107,7 +107,7 @@ send (Session t interp) v = do
            Strong -> do (a,s)<-runStateT (send' (Session t interp) v) ([],1) 
                         case s of 
                           ([],_) -> return a
-                          (xs,_) -> do interp (Async xs)
+                          (xs,_) -> do interp (Async (toJSON xs))
                                        return a 
 
 
@@ -118,7 +118,7 @@ send' s (Ap f a) = send' s f <*> send' s a
 send' (Session t interp) (Procedure nm args) = do
       
       (q,sessionId) <- get
-      when ((q /= []) || t == Weak) $ liftIO $ interp (Async q) 
+      when ((q /= []) || t == Weak) $ liftIO $ interp (Async (toJSON q)) 
       
       put ([],sessionId + 1)
 
@@ -172,13 +172,20 @@ send' (Session t interp) (Command nm args) = do
       case t of 
          Strong -> do (list, id)<-get 
                       put (list ++ [m], id) 
-         Weak -> liftIO $ interp (Async [m]) 
+         Weak -> liftIO $ interp (Async m) 
 
 
 -- | 'router' takes a list of name/function pairs,
 -- and dispatches them, using the JSON-RPC protocol.
 
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
+router db (Array a) = do let cmds = V.toList a
+                         res <- sequence $ map (router db) cmds 
+                         return $ Just $ object 
+                                [ "jsonrpc" .= ("2.0" :: Text)
+                                , "result" .= (toJSON res)
+                                ]
+     
 router db (Object o) = do
      print $ (o,parseMaybe p o)
      case parseMaybe p o of
