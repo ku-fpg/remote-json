@@ -32,10 +32,7 @@ module Control.Monad.Remote.JSON(
 
 import           Control.Applicative
 import           Control.Monad
-import           Control.Transformation
-import           Control.Concurrent.MVar
 import           Control.Monad.State
-import           Control.Monad.Trans (liftIO)
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -170,8 +167,8 @@ send' (Session t interp) (Command nm args) = do
                      , "params" .= args
                      ]
       case t of 
-         Strong -> do (list, id)<-get 
-                      put (list ++ [m], id) 
+         Strong -> do (list, id') <-get 
+                      put (list ++ [m], id') 
          Weak -> liftIO $ interp (Async m) 
 
 
@@ -206,7 +203,7 @@ router db (Object o) = do
         call nm args Nothing = case lookup nm db of
                Just fn -> do _ <- fn args
                              return $ Nothing
-               Nothing -> do fail $ "Method: "++(unpack nm)++" not found"
+               Nothing -> do _ <- fail $ "Method: "++(unpack nm)++" not found"
                              return $ Nothing
 
         p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
