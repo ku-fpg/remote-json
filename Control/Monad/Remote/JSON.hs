@@ -50,7 +50,7 @@ data RPC :: * -> * where
   deriving Typeable
 
 instance Functor RPC where
-  fmap f m = pure f <*> m 
+  fmap f m = pure f <*> m
 
 instance Applicative RPC where
   pure = Pure
@@ -65,10 +65,10 @@ instance Monad RPC where
 -- used by JSON-RPC. They *are* remote monad procedures and commands.
 
 method :: Text -> [Value] -> RPC Value
-method nm args = Procedure nm args  
+method nm args = Procedure nm args
 
-notification :: Text -> [Value] -> RPC () 
-notification nm args = Command nm args 
+notification :: Text -> [Value] -> RPC ()
+notification nm args = Command nm args
 
 -- | Utility for parsing the result, or failing
 result :: (Monad m, FromJSON a) => m Value -> m a
@@ -82,7 +82,7 @@ data SessionAPI :: * -> * where
 
 type CommandList = [Value]
 type SessionID = Int
-type MyState = (CommandList, SessionID) 
+type MyState = (CommandList, SessionID)
 
 data RemoteType = Strong | Weak
    deriving Eq
@@ -98,14 +98,14 @@ defaultSession t sync async = do
       (Session t interp)
 
 send :: Session -> RPC a -> IO a
-send (Session t interp) v = do 
+send (Session t interp) v = do
          case t of
            Weak   -> evalStateT (send' (Session t interp) v) ([],1)
-           Strong -> do (a,s)<-runStateT (send' (Session t interp) v) ([],1) 
-                        case s of 
+           Strong -> do (a,s)<-runStateT (send' (Session t interp) v) ([],1)
+                        case s of
                           ([],_) -> return a
                           (xs,_) -> do interp (Async (toJSON xs))
-                                       return a 
+                                       return a
 
 
 send' :: Session -> RPC a -> StateT MyState IO a
@@ -113,10 +113,10 @@ send' _ (Pure a) = return a
 send' s (Bind f k) = send' s f >>= send' s . k
 send' s (Ap f a) = send' s f <*> send' s a
 send' (Session t interp) (Procedure nm args) = do
-      
+
       (q,sessionId) <- get
-      when ((q /= []) || t == Weak) $ liftIO $ interp (Async (toJSON q)) 
-      
+      when ((q /= []) || t == Weak) $ liftIO $ interp (Async (toJSON q))
+
       put ([],sessionId + 1)
 
       let m = object [ "jsonrpc" .= ("2.0" :: Text)
@@ -166,10 +166,10 @@ send' (Session t interp) (Command nm args) = do
                      , "method" .= nm
                      , "params" .= args
                      ]
-      case t of 
-         Strong -> do (list, id') <-get 
-                      put (list ++ [m], id') 
-         Weak -> liftIO $ interp (Async m) 
+      case t of
+         Strong -> do (list, id') <-get
+                      put (list ++ [m], id')
+         Weak -> liftIO $ interp (Async m)
 
 
 -- | 'router' takes a list of name/function pairs,
@@ -177,14 +177,14 @@ send' (Session t interp) (Command nm args) = do
 
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
 router db (Array a) = do let cmds = V.toList a
-                         res <- sequence $ map (router db) cmds 
-                         return $ Just $ object 
+                         res <- sequence $ map (router db) cmds
+                         return $ Just $ object
                                 [ "jsonrpc" .= ("2.0" :: Text)
                                 , "result" .= (toJSON res)
                                 ]
-     
+
 router db (Object o) = do
-     print $ (o,parseMaybe p o)
+--      print $ (o,parseMaybe p o)
      case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
         Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
@@ -194,7 +194,7 @@ router db (Object o) = do
         call :: Text -> [Value] -> Maybe Value -> IO (Maybe Value)
         call nm args (Just theId) = case lookup nm db of
                Just fn -> do v <- fn args
-                             return $ Just $ object 
+                             return $ Just $ object
                                     [ "jsonrpc" .= ("2.0" :: Text)
                                     , "result" .= v
                                     , "id" .= theId
@@ -207,7 +207,7 @@ router db (Object o) = do
                              return $ Nothing
 
         p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
-        p o' =  (,,,) <$> o' .:  "jsonrpc" 
+        p o' =  (,,,) <$> o' .:  "jsonrpc"
                       <*> o' .:  "method"
                       <*> o' .:? "params"
                       -- We parse "id" directly, because "id":null is
@@ -217,7 +217,7 @@ router db (Object o) = do
 -- server db _  = return $ Just $ invalidRequest
 
 errorResponse :: Int -> Text -> Value -> Value
-errorResponse code msg theId = object 
+errorResponse code msg theId = object
         [ "jsonrpc" .= ("2.0" :: Text)
         , "error" .= object [ "code"  .= code
                             , "message" .= msg
