@@ -177,6 +177,7 @@ send' (Session t interp) (Command nm args) = do
 
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
 router db (Array a) = do let cmds = V.toList a
+                         print cmds
                          res <- sequence $ map (router db) cmds
                          return $ Just $ object
                                 [ "jsonrpc" .= ("2.0" :: Text)
@@ -184,7 +185,7 @@ router db (Array a) = do let cmds = V.toList a
                                 ]
 
 router db (Object o) = do
---      print $ (o,parseMaybe p o)
+     print $ (o,parseMaybe p o)
      case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
         Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
