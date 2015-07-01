@@ -116,7 +116,7 @@ send' s (Ap f a) = send' s f <*> send' s a
 send' (Session t interp) (Procedure nm args) = do
 
       (q,sessionId) <- get
-      when ((q /= []) || t == Weak) $ liftIO $ interp (Async (toJSON q))
+      when ((q /= []) && t == Strong) $ liftIO $ interp (Async (toJSON q))
 
       put ([],sessionId + 1)
 
