@@ -27,7 +27,8 @@ module Control.Monad.Remote.JSON(
         RemoteType(..),
         defaultSession,
         -- * Route the server-side JSON RPC calls
-        router
+        router,
+        routerDebug
   ) where
 
 import           Control.Applicative
@@ -174,18 +175,23 @@ send' (Session t interp) (Command nm args) = do
 
 -- | 'router' takes a list of name/function pairs,
 -- and dispatches them, using the JSON-RPC protocol.
-
 router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
-router db (Array a) = do let cmds = V.toList a
-                         print cmds
-                         res <- sequence $ map (router db) cmds
-                         return $ Just $ object
-                                [ "jsonrpc" .= ("2.0" :: Text)
-                                , "result" .= (toJSON res)
-                                ]
+router = routerDebug False
 
-router db (Object o) = do
-     print $ (o,parseMaybe p o)
+-- | Like 'router', but with the ability to configure whether debug output is
+-- printed to the screen.
+routerDebug :: Bool -> [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
+routerDebug debug db (Array a) = do
+    let cmds = V.toList a
+    when debug $ print cmds
+    res <- sequence $ map (routerDebug debug db) cmds
+    return $ Just $ object
+           [ "jsonrpc" .= ("2.0" :: Text)
+           , "result" .= (toJSON res)
+           ]
+
+routerDebug debug db (Object o) = do
+     when debug $ print (o,parseMaybe p o)
      case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
         Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
