@@ -3,7 +3,6 @@ import Data.Monoid (mconcat,(<>))
 import Data.Aeson
 import Data.Text
 import System.Random
---import Control.Monad.Trans (liftIO)
 import qualified Data.Text.IO as IO
 import Control.Monad.Remote.JSON (routerDebug)
 import VChanUtil

@@ -7,19 +7,8 @@ import Control.Monad (void)
 import qualified VChanUtil as VChan
 import VChanUtil 
 
-{-
-session :: Session
-session = defaultSession Strong (\v -> do
-                                   r <- asJSON =<< post "http://129.237.120.52:3000/" v
-                                   return $ r ^. responseBody) 
-                                (\v -> do
-                                  void $ post "http://129.237.120.52:3000/" v
-                                  return ())
-
--}
-
 createSession :: LibXenVChan -> Session
-createSession chan = defaultSession Weak (\v-> do 
+createSession chan = defaultSession Strong (\v-> do 
                                                  putStrLn $ "Sync: " ++ (show v)
                                                  VChan.send chan (encode v)
                                                  val <- receive chan
