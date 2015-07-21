@@ -26,6 +26,7 @@ module Control.Monad.Remote.JSON(
         Session(..),
         RemoteType(..),
         defaultSession,
+        traceSession,
         -- * Route the server-side JSON RPC calls
         router,
         routerDebug
@@ -97,6 +98,20 @@ defaultSession t sync async = do
           interp (Async vs) = async vs
 
       (Session t interp)
+
+-- | A tracing version of the Session, that states, as JSON objects, what is sent and received.
+traceSession :: String -> Session -> Session
+traceSession msg (Session t nt) = Session t nt'
+  where
+          nt' :: SessionAPI a -> IO a
+          nt' (Sync v)  = do
+                  putStrLn $ msg ++ ": sync " ++ show v
+                  r <- nt (Sync v)
+                  putStrLn $ msg ++ ": ret " ++ show r
+                  return r
+          nt' (Async v) = do
+                  putStrLn $ msg ++ ": async " ++ show v
+                  nt (Async v)
 
 send :: Session -> RPC a -> IO a
 send (Session t interp) v = do
