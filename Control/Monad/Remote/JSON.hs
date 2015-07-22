@@ -190,15 +190,15 @@ send' (Session t interp) (Command nm args) = do
 
 -- | 'router' takes a list of name/function pairs,
 -- and dispatches them, using the JSON-RPC protocol.
-router :: [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
+router :: MonadIO io => [ (Text, [Value] -> io Value) ] -> Value -> io (Maybe Value)
 router = routerDebug False
 
 -- | Like 'router', but with the ability to configure whether debug output is
 -- printed to the screen.
-routerDebug :: Bool -> [ (Text, [Value] -> IO Value) ] -> Value -> IO (Maybe Value)
+routerDebug :: forall io. MonadIO io => Bool -> [ (Text, [Value] -> io Value) ] -> Value -> io (Maybe Value)
 routerDebug debug db (Array a) = do
     let cmds = V.toList a
-    when debug $ print cmds
+    when debug . liftIO $ print cmds
     res <- sequence $ map (routerDebug debug db) cmds
     return $ Just $ object
            [ "jsonrpc" .= ("2.0" :: Text)
@@ -206,14 +206,14 @@ routerDebug debug db (Array a) = do
            ]
 
 routerDebug debug db (Object o) = do
-     when debug $ print (o,parseMaybe p o)
+     when debug . liftIO $ print (o,parseMaybe p o)
      case parseMaybe p o of
         Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
         Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
         _ -> return $ Just $ invalidRequest Nothing
   where
         -- Handles both method and notification, depending on the id value.
-        call :: Text -> [Value] -> Maybe Value -> IO (Maybe Value)
+        call :: Text -> [Value] -> Maybe Value -> io (Maybe Value)
         call nm args (Just theId) = case lookup nm db of
                Just fn -> do v <- fn args
                              return $ Just $ object
