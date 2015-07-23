@@ -41,6 +41,8 @@ import           Control.Monad.State
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.Text(Text, append, pack, unpack)
+import qualified Data.Text.Lazy as LT
+import           Data.Text.Lazy.Encoding(decodeUtf8)
 import           Data.Typeable
 import qualified Data.Vector as V
 
@@ -107,14 +109,15 @@ traceSession msg (Session t nt) = Session t nt'
   where
           nt' :: SessionAPI a -> IO a
           nt' (Sync v)  = do
-                  putStrLn $ msg ++ ": sync " ++ show v
+                  putStrLn $ msg ++ ": sync " ++ LT.unpack (decodeUtf8 (encode v))
                   r <- nt (Sync v)
-                  putStrLn $ msg ++ ": ret " ++ show r
+                  putStrLn $ msg ++ ": ret " ++ LT.unpack (decodeUtf8 (encode r))
                   return r
           nt' (Async v) = do
-                  putStrLn $ msg ++ ": async " ++ show v
+                  putStrLn $ msg ++ ": async " ++ LT.unpack (decodeUtf8 (encode v))
                   nt (Async v)
 
+-- 
 send :: Session -> RPC a -> IO a
 send (Session t interp) v = do
          case t of
