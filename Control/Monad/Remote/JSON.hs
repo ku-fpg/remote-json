@@ -29,7 +29,9 @@ module Control.Monad.Remote.JSON(
         traceSession,
         -- * Route the server-side JSON RPC calls
         router,
-        routerDebug
+        routerDebug,
+        -- * ProcedureCall call be used when re-using the JSON-RPC encoding.
+        ProcedureCall(..)
   ) where
 
 import           Control.Applicative
@@ -134,14 +136,8 @@ send' (Session t interp) (Procedure nm args) = do
       when ((q /= []) && t == Strong) $ liftIO $ interp (Async (toJSON q))
 
       put ([],sessionId + 1)
-
-      let m = object [ "jsonrpc" .= ("2.0" :: Text)
-                     , "method" .= nm
-                     , "params" .= args
-                     , "id" .= Just (toJSON sessionId)
-                     ]
-
-      v <- liftIO $ interp (Sync m)
+      
+      v <- liftIO $ interp $ Sync $ toJSON $ ProcedureCall nm args $ Just sessionId
 
       let p :: Object -> Parser (Text,Value, Maybe Value)
           p o =  (,,) <$> o .: "jsonrpc"
@@ -254,3 +250,29 @@ invalidRequest e = errorResponse (-32600) "Invalid Request" $ case e of
 
 methodNotFound :: Value -> Value
 methodNotFound = errorResponse (-32601) "Method not found"
+
+
+data ProcedureCall a = ProcedureCall Text [a] (Maybe Int)
+
+instance Show a => Show (ProcedureCall a) where
+   show (ProcedureCall nm args optId) = unpack nm ++ 
+           (case optId of
+              Nothing -> ""
+              Just i -> "#" ++ show i) ++
+           if  null args 
+           then "()"
+           else  concat [ t :         show x | (t,x) <- ('(':repeat ',') `zip` args ] ++ ")"
+
+instance ToJSON a => ToJSON (ProcedureCall a) where
+  toJSON (ProcedureCall nm args optId) = object $
+          [ "jsonrpc" .= ("2.0" :: Text)
+          , "method" .= nm
+          , "params" .= map toJSON args
+          ] ++
+          [ "id" .= Just i | Just i <- [optId] ]
+           
+instance FromJSON a => FromJSON (ProcedureCall a) where           
+  parseJSON (Object o) = ProcedureCall <$> o .: "method"
+                                       <*> o .: "params"
+                                       <*> optional (o .: "id")
+  parseJSON _ = fail "not an Object when parsing a ProcedureCall"
