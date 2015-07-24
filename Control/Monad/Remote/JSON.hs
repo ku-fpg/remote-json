@@ -30,8 +30,8 @@ module Control.Monad.Remote.JSON(
         -- * Route the server-side JSON RPC calls
         router,
         routerDebug,
-        -- * ProcedureCall call be used when re-using the JSON-RPC encoding.
-        ProcedureCall(..)
+        -- * 'Call' and 'TaggedCall' call be used when re-using the JSON-RPC encoding.
+        Call(..), TaggedCall(..)
   ) where
 
 import           Control.Applicative
@@ -140,7 +140,7 @@ send' (Session t interp) (Procedure nm args) = do
 
       put ([],sessionId + 1)
       
-      v <- liftIO $ interp $ Sync $ toJSON $ ProcedureCall nm args $ Just sessionId
+      v <- liftIO $ interp $ Sync $ toJSON $ TaggedCall nm args $ Number $ fromIntegral $ sessionId
 
       let p :: Object -> Parser (Text,Value, Maybe Value)
           p o =  (,,) <$> o .: "jsonrpc"
@@ -255,27 +255,50 @@ methodNotFound :: Value -> Value
 methodNotFound = errorResponse (-32601) "Method not found"
 
 
-data ProcedureCall a = ProcedureCall Text [a] (Maybe Int)
+data TaggedCall a = TaggedCall Text [a] Value
 
-instance Show a => Show (ProcedureCall a) where
-   show (ProcedureCall nm args optId) = unpack nm ++ 
-           (case optId of
-              Nothing -> ""
-              Just i -> "#" ++ show i) ++
+instance Show a => Show (TaggedCall a) where
+   show (TaggedCall nm args tag) = unpack nm ++
+           "<" ++ show tag ++ ">" ++
            if  null args 
            then "()"
-           else  concat [ t :         show x | (t,x) <- ('(':repeat ',') `zip` args ] ++ ")"
+           else  concat [ t : show x 
+                        | (t,x) <- ('(':repeat ',') `zip` args 
+                        ] ++ ")"
 
-instance ToJSON a => ToJSON (ProcedureCall a) where
-  toJSON (ProcedureCall nm args optId) = object $
+instance ToJSON a => ToJSON (TaggedCall a) where
+  toJSON (TaggedCall nm args tag) = object $
           [ "jsonrpc" .= ("2.0" :: Text)
           , "method" .= nm
           , "params" .= map toJSON args
-          ] ++
-          [ "id" .= Just i | Just i <- [optId] ]
+          , "id" .= tag
+          ]
            
-instance FromJSON a => FromJSON (ProcedureCall a) where           
-  parseJSON (Object o) = ProcedureCall <$> o .: "method"
+instance FromJSON a => FromJSON (TaggedCall a) where           
+  parseJSON (Object o) = TaggedCall <$> o .: "method"
                                        <*> o .: "params"
-                                       <*> optional (o .: "id")
-  parseJSON _ = fail "not an Object when parsing a ProcedureCall"
+                                       <*> o .: "id"
+  parseJSON _ = fail "not an Object when parsing a TaggedCall"
+  
+data Call a = Call Text [a] 
+
+instance Show a => Show (Call a) where
+   show (Call nm args) = unpack nm ++ 
+           if  null args 
+           then "()"
+           else  concat [ t : show x 
+                        | (t,x) <- ('(':repeat ',') `zip` args 
+                        ] ++ ")"
+
+instance ToJSON a => ToJSON (Call a) where
+  toJSON (Call nm args) = object $
+          [ "jsonrpc" .= ("2.0" :: Text)
+          , "method" .= nm
+          , "params" .= map toJSON args
+          ]
+           
+instance FromJSON a => FromJSON (Call a) where           
+  parseJSON (Object o) = Call <$> o .: "method"
+                              <*> o .: "params"
+  parseJSON _ = fail "not an Object when parsing a Call"  
+  
