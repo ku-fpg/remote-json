@@ -1,0 +1,15 @@
+# rpc call with positional parameters:
+
+--> {"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}
+<-- {"jsonrpc": "2.0", "result": 19, "id": 1}
+
+--> {"jsonrpc": "2.0", "method": "subtract", "params": [23, 42], "id": 2}
+<-- {"jsonrpc": "2.0", "result": -19, "id": 2}
+
+# rpc call Batch, invalid JSON:
+
+--> [
+  {"jsonrpc": "2.0", "method": "sum", "params": [1,2,4], "id": "1"},
+  {"jsonrpc": "2.0", "method"
+]
+<-- {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}
