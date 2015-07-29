@@ -55,22 +55,24 @@ simpleRouter :: forall m . MonadThrow m
        -> Value -> m (Maybe Value)
 simpleRouter f v = case parser of
     Success m -> m
-    Error e1 ->  return $ Just $ errorResponse (-32601) "Method not found" v
+    Error e1 ->  return $ Just $ invalidRequest $ Nothing
   where
         -- This does not support all the error messages (yet)
         parser :: Result (m (Maybe Value))
-        parser = fmap Just            <$> meth <$> (fromJSON v :: Result (Call Value))
-             <|> fmap (const Nothing) <$> f    <$> (fromJSON v :: Result (Call ()))
+        parser = meth <$> fromJSON v
+             <|> note <$> fromJSON v
 
-        meth :: Call Value -> m Value
+        meth :: Call Value -> m (Maybe Value)
         meth (Method nm args tag) = do
                 v <- f (Method nm args tag)
-                return $ object
+                return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
                        , "result" .= v
                        , "id" .= tag
                        ]
-                
+
+        note :: Call () -> m (Maybe Value)
+        note c = f c >> return Nothing
 
 
 {-
