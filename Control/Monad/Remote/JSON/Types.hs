@@ -46,15 +46,6 @@ transport f (Async v) = const ()                             <$> f (Send v)
 data RemoteType = Strong | Weak
    deriving (Eq,Ord,Show)
 
-data Session = Session 
-        { remoteMonad       :: RemoteType
-        , remoteApplicative :: RemoteType
-        , remoteSession     :: forall a. SessionAPI a -> IO a
-        }
-   
-session :: (forall a . SessionAPI a -> IO a) -> Session
-session = Session Weak Weak
-
 data Call :: * -> * where
   Method         :: Text -> Args -> Value -> Call Value
   Notification   :: Text -> Args          -> Call ()
@@ -131,3 +122,19 @@ instance FromJSON Tag where
   parseJSON (Object o) = Tag <$> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Tag"
 
+data ErrorResponse = ErrorResponse Int Text Value
+
+instance ToJSON ErrorResponse where
+  toJSON (ErrorResponse code msg theId) = object
+                [ "jsonrpc" .= ("2.0" :: Text)
+                , "error" .= object [ "code"  .= code
+                                    , "message" .= msg
+                                    ]
+                , "id" .= theId
+                ]
+
+instance FromJSON ErrorResponse where
+--  parseJSON (Object o) = ErrorResponse <$> o .: "method"
+--                                       <*> (o .: "params" <|> return None)
+  parseJSON _ = fail "not an Object when parsing a Call ()"  
+        

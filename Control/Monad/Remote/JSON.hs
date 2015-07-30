@@ -46,8 +46,8 @@ data RPC :: * -> * where
     Pure         :: a ->                              RPC a
     Bind         :: RPC a -> (a -> RPC b) ->          RPC b
     Ap           :: RPC (a -> b) -> RPC a ->          RPC b
-    Procedure       :: Text -> [Value] -> RPC Value
-    Command :: Text -> [Value] ->                RPC ()
+    Procedure       :: Text -> Args -> RPC Value
+    Command :: Text -> Args ->                RPC ()
     Fail         :: String ->                         RPC a
   deriving Typeable
 
@@ -67,10 +67,10 @@ instance Monad RPC where
 -- We use the terms method and notification because this is the terminology
 -- used by JSON-RPC. They *are* remote monad procedures and commands.
 
-method :: Text -> [Value] -> RPC Value
+method :: Text -> Args -> RPC Value
 method nm args = Procedure nm args
 
-notification :: Text -> [Value] -> RPC ()
+notification :: Text -> Args -> RPC ()
 notification nm args = Command nm args
 
 -- | Utility for parsing the result, or failing
@@ -82,6 +82,15 @@ result m = do
 type CommandList = [Value]
 type SessionID = Int
 type MyState = (CommandList, SessionID)
+
+data Session = Session 
+        { remoteMonad       :: RemoteType
+        , remoteApplicative :: RemoteType
+        , remoteSession     :: forall a. SessionAPI a -> IO a
+        }
+   
+session :: (forall a . SessionAPI a -> IO a) -> Session
+session = Session Weak Weak
 
 -- 
 send :: Session -> RPC a -> IO a
@@ -104,7 +113,7 @@ send' (Session t _ interp) (Procedure nm args) = do
 
       put ([],sessionId + 1)
       
-      v <- liftIO $ interp $ Sync $ toJSON $ TaggedCall (Call nm args) $ Number $ fromIntegral $ sessionId
+      v <- liftIO $ interp $ Sync $ toJSON $ Method nm args $ Number $ fromIntegral $ sessionId
 
       let p :: Object -> Parser (Text,Value, Maybe Value)
           p o =  (,,) <$> o .: "jsonrpc"
@@ -141,10 +150,7 @@ send' (Session t _ interp) (Procedure nm args) = do
 
 
 send' (Session t _ interp) (Command nm args) = do
-      let m = object [ "jsonrpc" .= ("2.0" :: Text)
-                     , "method" .= nm
-                     , "params" .= args
-                     ]
+      let m = toJSON $ Notification nm args
       case t of
          Strong -> do (list, id') <-get
                       put (list ++ [m], id')
