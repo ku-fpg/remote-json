@@ -18,6 +18,7 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Router where
         
 import           Control.Applicative
+import           Control.Exception.Base (PatternMatchFail)
 import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Remote.JSON.Types
@@ -35,7 +36,7 @@ import qualified Data.Vector as V
 -- | "The Server MAY process a batch rpc call as a set of concurrent tasks,
 --    processing them in any order and with any width of parallelism."
 --   We control this using the first argument.         
-router :: MonadThrow m 
+router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
        -> (forall a . Call a -> m a) 
        -> TransportAPI a -> m a
@@ -50,7 +51,7 @@ router s f (Send v@(Array a)) = do
           vs -> return (Just (toJSON vs))
 rounter s f _ = return $ Just $ invalidRequest
         
-simpleRouter :: forall m . MonadThrow m 
+simpleRouter :: forall m . MonadCatch m 
        => (forall a . Call a -> m a) 
        -> Value -> m (Maybe Value)
 simpleRouter f v = case parser of
@@ -63,16 +64,17 @@ simpleRouter f v = case parser of
              <|> note <$> fromJSON v
 
         meth :: Call Value -> m (Maybe Value)
-        meth (Method nm args tag) = do
+        meth (Method nm args tag) = (do
                 v <- f (Method nm args tag)
                 return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
                        , "result" .= v
                        , "id" .= tag
-                       ]
+                       ]) `catch` \ (e :: PatternMatchFail) -> 
+                               return $ Just $ methodNotFound tag
 
         note :: Call () -> m (Maybe Value)
-        note c = f c >> return Nothing
+        note c = (f c >> return Nothing) `catchAll` \ _ -> return Nothing
 
 
 {-
