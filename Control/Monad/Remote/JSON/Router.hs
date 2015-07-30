@@ -18,7 +18,7 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Router where
         
 import           Control.Applicative
-import           Control.Exception.Base (PatternMatchFail)
+import           Control.Exception.Base (PatternMatchFail(..))
 import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Remote.JSON.Types
@@ -73,7 +73,7 @@ simpleRouter f v = case parser of
                        , "result" .= v
                        , "id" .= tag
                        ]) `catch` \ (e :: PatternMatchFail) -> 
-                               return $ Just $ methodNotFound tag
+                               return $ Just $ errorResponse (-32601) "Method not found" tag
 
         note :: Call () -> m (Maybe Value)
         note c = (f c >> return Nothing) `catchAll` \ _ -> return Nothing
@@ -154,9 +154,12 @@ invalidRequest e = errorResponse (-32600) "Invalid Request" $ case e of
         Nothing -> Null
         Just v  -> v
 
-methodNotFound :: Value -> Value
-methodNotFound = errorResponse (-32601) "Method not found"
+--methodNotFound :: Value -> Value
+--methodNotFound = errorResponse (-32601) "Method not found"
 
 -- For use when parsing to a Send fails
 parseError :: Value
 parseError = errorResponse (-32700) "Parse error" Null
+
+methodNotFound :: MonadThrow m => m a
+methodNotFound = throwM $ PatternMatchFail $ "methodNotFound"

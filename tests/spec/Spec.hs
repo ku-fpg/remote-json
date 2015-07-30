@@ -32,6 +32,7 @@ f (Method "get_data" None _) = return $ toJSON [String "hello", Number 5]
 f (Notification "update" _) = return $ ()
 f (Notification "notify_hello" _) = return $ ()
 f (Notification "notify_sum" _)   = return $ ()
+f _ = methodNotFound
 
 --f (Method nm args _) = fail $ "missing method : " ++ show (nm,args)
 --f (Notification nm args) = fail $ "missing notification : " ++ show (nm,args)
