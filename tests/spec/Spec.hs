@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Spec where
+module Main where
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -17,6 +17,7 @@ import           Control.Monad (when)
 import           Control.Monad.Remote.JSON.Router
 import           Control.Monad.Remote.JSON.Types -- for now
 import           Data.Attoparsec.ByteString
+import           System.Exit
 import           Test (readTests, Test(..))
 
 f :: Call a -> IO a
@@ -78,3 +79,4 @@ main = do
   else do 
      putStrLn $ show (length failing) ++ " test(s) failed"
      putStrLn $ unlines $ map show failing
+     exitFailure
