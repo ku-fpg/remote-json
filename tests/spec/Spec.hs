@@ -40,24 +40,36 @@ newtype C = C (forall a . Call a -> IO a)
 
 main = do
   tests <- readTests "tests/spec/Spec.txt"
-  res <- sequence 
-        [ do when (i == 1) $ do
-                putStr "#" 
-                TIO.putStrLn $ testName
+  let testWith i testName (Right v_req) v_expect = do
              putStrLn $ ("--> " ++) $ LT.unpack $ decodeUtf8 $ encode v_req
              r <- router sequence f (Send v_req)
-             case r of
-               Nothing -> return ()
-               Just v_rep -> do
-                   putStrLn $ ("<-- " ++) $ LT.unpack $ decodeUtf8 $ encode v_rep
+             showResult i testName r v_expect
+      testWith i testName (Left bad) v_expect = do
+             putStrLn $ ("--> " ++) $ LT.unpack $ decodeUtf8 $ bad
+             let r = Just $ parseError
+             showResult i testName r v_expect
+      showResult i testName Nothing v_expect = do
+             testResult i testName Nothing v_expect
+      showResult i testName (Just v_resp) v_expect = do
+             putStrLn $ ("<-- " ++) $ LT.unpack $ decodeUtf8 $ encode v_resp
+             testResult i testName (Just v_resp) v_expect
+             
+      testResult i testName r v_expect = do
              r <- if (r /= v_expect) 
                   then do putStrLn $ ("exp " ++) $ LT.unpack $ decodeUtf8 $ encode v_expect
                           return $ Just (i,testName)
                   else return Nothing
              putStrLn ""
              return r
+
+    
+  res <- sequence 
+        [ do when (i == 1) $ do
+                putStr "#" 
+                TIO.putStrLn $ testName
+             testWith i testName (Right v_req) v_expect
         |  (Test testName subTests) <- tests
-        ,  (i,(v_req,v_expect)) <- [1..] `zip` subTests
+        ,  (i,(Just v_req,v_expect)) <- [1..] `zip` subTests
         ]
   let failing = [ x | Just x <- res ]
   if (null failing)

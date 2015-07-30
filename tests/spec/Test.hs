@@ -20,7 +20,7 @@ import           Control.Monad.Remote.JSON.Types -- for now
 import           Data.Attoparsec.ByteString hiding (parseTest)
 
 
-data Test = Test Text [(Value,Maybe Value)]
+data Test = Test Text [(Maybe Value,Maybe Value)]
   deriving Show
 
 lexeme :: Parser a -> Parser a
@@ -36,7 +36,7 @@ parseTest = do
                 lexeme (string "-->") 
                 req <- json'
                 res <- optional (lexeme (string "<--") *> json')
-                return $ (req,res)
+                return $ (return req,res)
         return $ Test (decodeUtf8 (BS.pack title)) ts
 
 readTests :: FilePath -> IO [Test]
