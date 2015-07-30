@@ -13,7 +13,9 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Control.Monad.Remote.JSON
+  exposed-modules:     Control.Monad.Remote.JSON,
+                       Control.Monad.Remote.JSON.Router,
+                       Control.Monad.Remote.JSON.Types
                        
   -- other-modules:       
   build-depends:       aeson                  >= 0.8  && < 0.10
