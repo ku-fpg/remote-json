@@ -24,7 +24,9 @@ import           Control.Monad.State
 
 import           Data.Aeson
 import           Data.Aeson.Types
+import qualified Data.HashMap.Strict as HM
 import           Data.Text(Text, append, pack, unpack)
+
 import qualified Data.Text.Lazy as LT
 import           Data.Text.Lazy.Encoding(decodeUtf8)
 import           Data.Typeable
@@ -55,7 +57,7 @@ session = Session Weak Weak
 
 data Call :: * -> * where
   Method         :: Text -> [Value] -> Value -> Call Value
-  Notification   :: Text -> [Value] -> Call ()
+  Notification   :: Text -> [Value]          -> Call ()
 
 instance Show (Call a) where
    show (Method nm args tag) = show (Notification nm args) ++ "#" ++ show tag
@@ -92,8 +94,42 @@ instance FromJSON (Call ()) where
                                       <*> o .: "params"
   parseJSON _ = fail "not an Object when parsing a Call ()"  
 
+
+data Args where
+  List :: [Value]         -> Args
+  Named :: [(Text,Value)] -> Args
+  None  ::                   Args
+
+instance Show Args where
+   show (List args) =
+           if  null args 
+           then "()"
+           else  concat [ t : LT.unpack (decodeUtf8 (encode x))
+                        | (t,x) <- ('(':repeat ',') `zip` args 
+                        ] ++ ")"
+   show (Named args) =
+           if  null args 
+           then "{}"
+           else  concat [ t : show i ++ ":" ++ LT.unpack (decodeUtf8 (encode v))
+                        | (t,(i,v)) <- ('{':repeat ',') `zip` args 
+                        ] ++ "}"
+
+   show None = ""
+
+instance ToJSON Args where
+  toJSON (List a)    = Array (V.fromList a)
+  toJSON (Named ivs) = object [ i .= v | (i,v) <- ivs ]
+  toJSON None       = Null
+  
+instance FromJSON Args where
+  parseJSON (Array a)   = return $ List (V.toList a)
+  parseJSON (Object fm) = return $ Named (HM.toList fm)
+  parseJSON Null        = return $ None
+  parseJSON _           = fail "parsing Args"
+
 newtype Tag = Tag Value deriving Show
 
 instance FromJSON Tag where           
   parseJSON (Object o) = Tag <$> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Tag"
+
