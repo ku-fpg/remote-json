@@ -60,6 +60,8 @@ main = do
         ,  (i,(v_req,v_expect)) <- [1..] `zip` subTests
         ]
   let failing = [ x | Just x <- res ]
-  when (not (null failing)) $ do
+  if (null failing)
+  then putStrLn $ "ALL " ++ show (length res) ++ " TEST(S) PASS"
+  else do 
      putStrLn $ show (length failing) ++ " test(s) failed"
      putStrLn $ unlines $ map show failing

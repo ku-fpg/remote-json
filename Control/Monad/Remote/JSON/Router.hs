@@ -41,7 +41,9 @@ router :: MonadCatch m
        -> (forall a . Call a -> m a) 
        -> TransportAPI a -> m a
 router s f (Send v@(Object {})) = simpleRouter f v
-router s f (Send v@(Array a)) = do
+router s f (Send v@(Array a)) 
+  | V.null a = return $ Just $ invalidRequest (Just Null)
+  | otherwise = do
         rs <- s (map (simpleRouter f) $ V.toList a)
         case [ v | Just v <- rs ] of
           [] -> return Nothing -- If there are no Response objects contained within the
