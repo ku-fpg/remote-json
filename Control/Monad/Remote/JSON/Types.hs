@@ -56,42 +56,40 @@ session :: (forall a . SessionAPI a -> IO a) -> Session
 session = Session Weak Weak
 
 data Call :: * -> * where
-  Method         :: Text -> [Value] -> Value -> Call Value
-  Notification   :: Text -> [Value]          -> Call ()
+  Method         :: Text -> Args -> Value -> Call Value
+  Notification   :: Text -> Args          -> Call ()
 
 instance Show (Call a) where
-   show (Method nm args tag) = show (Notification nm args) ++ "#" ++ show tag
-   show (Notification nm args) = unpack nm ++ 
-           if  null args 
-           then "()"
-           else  concat [ t : LT.unpack (decodeUtf8 (encode x))
-                        | (t,x) <- ('(':repeat ',') `zip` args 
-                        ] ++ ")"
+   show (Method nm args tag) = unpack nm ++ show args ++ "#" ++ show tag
+   show (Notification nm args) = unpack nm ++ show args
 
 instance ToJSON (Call Value) where
   toJSON (Method nm args tag) = object $
           [ "jsonrpc" .= ("2.0" :: Text)
           , "method" .= nm
-          , "params" .= args
           , "id" .= tag
-          ]
+          ] ++ case args of
+                 None -> []
+                 _    -> [ "params" .= args ]
+
 
 instance ToJSON (Call ()) where
   toJSON (Notification nm args) = object $
           [ "jsonrpc" .= ("2.0" :: Text)
           , "method" .= nm
-          , "params" .= args
-          ]
+          ] ++ case args of
+                 None -> []
+                 _    -> [ "params" .= args ]
 
 instance FromJSON (Call Value) where           
   parseJSON (Object o) = Method <$> o .: "method"
-                                <*> o .: "params"
+                                <*> (o .: "params" <|> return None)
                                 <*> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Call Value"  
 
 instance FromJSON (Call ()) where           
   parseJSON (Object o) = Notification <$> o .: "method"
-                                      <*> o .: "params"
+                                      <*> (o .: "params" <|> return None)
   parseJSON _ = fail "not an Object when parsing a Call ()"  
 
 
