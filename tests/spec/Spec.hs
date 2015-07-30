@@ -20,11 +20,12 @@ import           Data.Attoparsec.ByteString
 import           Test (readTests, Test(..))
 
 f :: Call a -> IO a
-f (Method "subtract" [Number a,Number b] _) = return $ Number (a + b)
+f (Method "subtract" [Number a,Number b] _) = return $ Number (a - b)
 f (Method "sum" xs _) = return $ Number $ sum $ [ x | Number x <- xs ]
 f (Notification "update" _) = return $ ()
 f (Notification "notify_hello" _) = return $ ()
 f (Notification "notify_sum" _)   = return $ ()
+
 f (Method nm args _) = fail $ "missing method : " ++ show (nm,args)
 f (Notification nm args) = fail $ "missing notification : " ++ show (nm,args)
 
