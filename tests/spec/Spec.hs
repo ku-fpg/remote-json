@@ -45,7 +45,8 @@ main = do
              r <- router sequence f (Send v_req)
              showResult i testName r v_expect
       testWith i testName (Left bad) v_expect = do
-             putStrLn $ ("--> " ++) $ LT.unpack $ decodeUtf8 $ bad
+             putStr "--> " 
+             TIO.putStr $ bad
              let r = Just $ parseError
              showResult i testName r v_expect
       showResult i testName Nothing v_expect = do
@@ -67,9 +68,9 @@ main = do
         [ do when (i == 1) $ do
                 putStr "#" 
                 TIO.putStrLn $ testName
-             testWith i testName (Right v_req) v_expect
+             testWith i testName v_req v_expect
         |  (Test testName subTests) <- tests
-        ,  (i,(Just v_req,v_expect)) <- [1..] `zip` subTests
+        ,  (i,(v_req,v_expect)) <- [1..] `zip` subTests
         ]
   let failing = [ x | Just x <- res ]
   if (null failing)
