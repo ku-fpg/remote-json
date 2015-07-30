@@ -7,6 +7,13 @@
 <-- {"jsonrpc": "2.0", "result": -19, "id": 2}
 
 # rpc call with named parameters:
+
+--> {"jsonrpc": "2.0", "method": "subtract", "params": {"subtrahend": 23, "minuend": 42}, "id": 3}
+<-- {"jsonrpc": "2.0", "result": 19, "id": 3}
+
+--> {"jsonrpc": "2.0", "method": "subtract", "params": {"minuend": 42, "subtrahend": 23}, "id": 4}
+<-- {"jsonrpc": "2.0", "result": 19, "id": 4}
+
 # a Notification:
 
 --> {"jsonrpc": "2.0", "method": "update", "params": [1,2,3,4,5]}
