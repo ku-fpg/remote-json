@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- Example of a typed DSL
-module DSL (temperature, say, fib, send, Session(..)) where
+module DSL (temperature, say, fib, send, DSLSession(..)) where
         
 import Control.Monad        
 import qualified Control.Monad.Remote.JSON as R
@@ -16,31 +16,30 @@ import qualified Data.Text.IO as IO
 import System.Random
 import Control.Transformation
 
-newtype Session = Session R.Session 
+newtype DSLSession = DSLSession R.Session 
 
-newtype RPC a = RPC (R.RPC a)
+newtype DSL a = DSL (R.RPC a)
   deriving (Monad, Applicative, Functor)
 
+method :: FromJSON a => Text -> [Value] -> DSL a
+method nm args = (DSL . R.result) (R.method nm (R.List args))
 
-method :: FromJSON a => Text -> [Value] -> RPC a
-method nm args = (RPC . R.result) (R.method nm args)
+notification :: Text -> [Value] -> DSL ()
+notification nm = DSL . R.notification nm . R.List
 
-notification :: Text -> [Value] -> RPC ()
-notification nm = RPC . R.notification nm
-
-temperature :: RPC Int
+temperature :: DSL Int
 temperature = method "temperature" [] 
                        
-say :: Text -> RPC ()
+say :: Text -> DSL ()
 say msg = notification "say" [toJSON msg]
 
-fib :: Int -> RPC Int
+fib :: Int -> DSL Int
 fib x = method "fib" [toJSON x]
 
 
-send :: Session -> RPC a -> IO a
-send (Session s) (RPC m) = R.send s m
+send :: DSLSession -> DSL a -> IO a
+send (DSLSession s) (DSL m) = R.send s m
 
-instance Transformation RPC IO Session where
+instance Transformation DSL IO DSLSession where
    (#) = send
 

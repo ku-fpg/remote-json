@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Main where
+module Typed (typed) where
 
 import Control.Monad        
 import Control.Applicative
@@ -12,17 +12,18 @@ import qualified Data.Text.IO as IO
 import System.Random
 
 import DSL 
-import Server
 
-main = do
-        ts <- send (Session session) $ do
-                say "Hello!"
-                say "Hello!"
+typed :: DSLSession -> IO ()
+typed s = do
+        ts <- send s $ do
+                say "Hello, "
+                say "World!"
                 t1 <- temperature
                 t2 <- temperature
                 t3 <- temperature
                 say "Howdy"
                 return [t1,t2,t3]
         print ts                       
-        
+        r <- send s (fib 10)
+        print r
 

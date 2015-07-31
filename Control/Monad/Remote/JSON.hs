@@ -5,6 +5,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DataKinds #-}
 
 {-|
 Module:      Control.Monad.Remote.JSON where
@@ -17,7 +18,7 @@ Portability: GHC
 
 module Control.Monad.Remote.JSON(
         -- * JSON-RPC DSL
-        RPC,
+        RPC,  -- abstract
         method,
         notification,
         result,
@@ -25,17 +26,14 @@ module Control.Monad.Remote.JSON(
         send,
         Session(..),
         RemoteType(..),
-        defaultSession,
-        traceSession,
-        -- * Route the server-side JSON RPC calls
-        router,
-        routerDebug,
-        -- * 'Call' and 'TaggedCall' call be used when re-using the JSON-RPC encoding.
-        Call(..), TaggedCall(..)
+        session,
+        -- * Types
+        Args(..)
   ) where
 
 import           Control.Applicative
 import           Control.Monad
+import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.State
 
 import           Data.Aeson
@@ -46,34 +44,36 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 import           Data.Typeable
 import qualified Data.Vector as V
 
+
 data RPC :: * -> * where
-    Pure         :: a ->                              RPC a
-    Bind         :: RPC a -> (a -> RPC b) ->          RPC b
-    Ap           :: RPC (a -> b) -> RPC a ->          RPC b
-    Procedure       :: Text -> [Value] -> RPC Value
-    Command :: Text -> [Value] ->                RPC ()
-    Fail         :: String ->                         RPC a
+    Pure         :: a ->                     RPC a
+    Bind         :: RPC a -> (a -> RPC b) -> RPC b
+    Ap           :: RPC (a -> b) -> RPC a -> RPC b
+    Procedure    :: Text -> Args ->          RPC Value
+    Command      :: Text -> Args ->          RPC ()
+    Fail         :: String ->                RPC a
   deriving Typeable
 
 instance Functor RPC where
   fmap f m = pure f <*> m
 
 instance Applicative RPC where
-  pure = Pure
+  pure  = Pure
   (<*>) = Ap
 
 instance Monad RPC where
-  return = pure
-  (>>=) = Bind
-  fail  = Fail
+  return     = pure
+  (>>=)      = Bind
+  (>>) m1 m2 = flip const <$> m1 <*> m2  -- so that the SAF can take advantage of this
+  fail       = Fail
 
 -- We use the terms method and notification because this is the terminology
 -- used by JSON-RPC. They *are* remote monad procedures and commands.
 
-method :: Text -> [Value] -> RPC Value
+method :: Text -> Args -> RPC Value
 method nm args = Procedure nm args
 
-notification :: Text -> [Value] -> RPC ()
+notification :: Text -> Args -> RPC ()
 notification nm args = Command nm args
 
 -- | Utility for parsing the result, or failing
@@ -82,223 +82,64 @@ result m = do
         Success r <- liftM fromJSON m
         return r
 
-data SessionAPI :: * -> * where
-   Sync  :: Value -> SessionAPI Value
-   Async :: Value -> SessionAPI ()
+data Session = Session 
+        { remoteMonad       :: RemoteType
+        , remoteApplicative :: RemoteType
+        , remoteSession     :: forall a. SessionAPI a -> IO a
+        }
+   
+session :: (forall a . SessionAPI a -> IO a) -> Session
+session = Session Weak Weak
 
-type CommandList = [Value]
-type SessionID = Int
-type MyState = (CommandList, SessionID)
-
-data RemoteType = Strong | Weak
-   deriving Eq
-
-data Session = Session RemoteType (forall a. (SessionAPI a) -> IO a)
-
-defaultSession :: RemoteType -> (Value->IO Value) -> (Value->IO ())-> Session
-defaultSession t sync async = do
-      let interp :: SessionAPI a -> IO a
-          interp (Sync v) = sync v
-          interp (Async vs) = async vs
-
-      (Session t interp)
-
--- | A tracing version of the Session, that states, as JSON objects, what is sent and received.
-traceSession :: String -> Session -> Session
-traceSession msg (Session t nt) = Session t nt'
-  where
-          nt' :: SessionAPI a -> IO a
-          nt' (Sync v)  = do
-                  putStrLn $ msg ++ ": sync " ++ LT.unpack (decodeUtf8 (encode v))
-                  r <- nt (Sync v)
-                  putStrLn $ msg ++ ": ret " ++ LT.unpack (decodeUtf8 (encode r))
-                  return r
-          nt' (Async v) = do
-                  putStrLn $ msg ++ ": async " ++ LT.unpack (decodeUtf8 (encode v))
-                  nt (Async v)
-
--- 
+-- | 'send' the remote monad `RPC` to the remote site, for execution.
 send :: Session -> RPC a -> IO a
-send (Session t interp) v = do
-         case t of
-           Weak   -> evalStateT (send' (Session t interp) v) ([],1)
-           Strong -> do (a,s)<-runStateT (send' (Session t interp) v) ([],1)
-                        case s of
-                          ([],_) -> return a
-                          (xs,_) -> do interp (Async (toJSON xs))
-                                       return a
+send session m = case remoteMonad session of
+        Weak   -> sendWeak session m
+        Strong -> do (a,st) <- runStateT (sendStrong session m) []
+                     when (not (null st)) $ do
+                        void $ remoteSession session $ Async $ toJSON st
+                     return a
 
+data SendState :: RemoteType -> * where
+ WeakState :: Int -> SendState Weak
 
-send' :: Session -> RPC a -> StateT MyState IO a
-send' _ (Pure a) = return a
-send' s (Bind f k) = send' s f >>= send' s . k
-send' s (Ap f a) = send' s f <*> send' s a
-send' (Session t interp) (Procedure nm args) = do
+initWeakState :: SendState Weak
+initWeakState = WeakState 1
 
-      (q,sessionId) <- get
-      when ((q /= []) && t == Strong) $ liftIO $ interp (Async (toJSON q))
+sendWeak :: Session -> RPC a -> IO a
+sendWeak _ (Pure a)   = return a
+sendWeak s (Bind f k) = sendWeak s f >>= sendWeak s . k
+sendWeak s (Ap f a)   = sendWeak s f <*> sendWeak s a
+sendWeak _ (Fail msg) = fail msg   -- Need to think about this
+sendWeak s (Command nm args) =
+      remoteSession s $ Async $ toJSON $ Notification nm args
+sendWeak s (Procedure nm args) = do
+        r <- remoteSession s $ Sync $ toJSON $ Method nm args (toJSON i)
+        case fromJSON r of
+                  Success (Response v tag) 
+                          | tag == toJSON i -> return v
+                          | otherwise       -> fail "remote error: tag numbers do not match"
+                  _ -> fail "remote error: failing response returned"
+  where i = 1 :: Int
 
-      put ([],sessionId + 1)
-      
-      v <- liftIO $ interp $ Sync $ toJSON $ TaggedCall nm args $ Number $ fromIntegral $ sessionId
-
-      let p :: Object -> Parser (Text,Value, Maybe Value)
-          p o =  (,,) <$> o .: "jsonrpc"
-                      <*> o .: "result"
-                      <*> o .: "id"
-
-      let p2 :: Object -> Parser (Text,Value)
-          p2 o =  (,) <$> o .: "jsonrpc"
-                     <*> o .: "error"
-
-      let p3 :: Object -> Parser (Value,Value)
-          p3 o =  (,) <$> o .: "code"
-                     <*> o .: "message"
-      let package = (append . (flip append (" ")) . pack . show)
-      let handleError:: Object -> IO Value
-          handleError o = do putStr "Error: "
-                             case parseMaybe p3 o of
-                               Just ((Number code),(String mesg)) ->
-                                   -- Create error message
-                                   return $ String $ package code mesg
-                               _  -> return Null
-      case v of
-        Object o -> case parseMaybe p o of
-                  Just ("2.0",v', (Just retId)) -> do
-                                               if retId == (toJSON sessionId) then
-                                                 return v'
-                                               else
-                                                 fail "ID's didn't match"
-                  _               -> case parseMaybe p2 o of
-                                      Just("2.0",(Object v')) -> liftIO $ handleError v'
-
-                                      _              -> do return Null
-        _ -> return Null
-
-
-send' (Session t interp) (Command nm args) = do
-      let m = object [ "jsonrpc" .= ("2.0" :: Text)
-                     , "method" .= nm
-                     , "params" .= args
-                     ]
-      case t of
-         Strong -> do (list, id') <-get
-                      put (list ++ [m], id')
-         Weak -> liftIO $ interp (Async m)
-
-
--- | 'router' takes a list of name/function pairs,
--- and dispatches them, using the JSON-RPC protocol.
-router :: MonadIO io => [ (Text, [Value] -> io Value) ] -> Value -> io (Maybe Value)
-router = routerDebug False
-
--- | Like 'router', but with the ability to configure whether debug output is
--- printed to the screen.
-routerDebug :: forall io. MonadIO io => Bool -> [ (Text, [Value] -> io Value) ] -> Value -> io (Maybe Value)
-routerDebug debug db (Array a) = do
-    let cmds = V.toList a
-    when debug . liftIO $ print cmds
-    res <- sequence $ map (routerDebug debug db) cmds
-    return $ Just $ object
-           [ "jsonrpc" .= ("2.0" :: Text)
-           , "result" .= (toJSON res)
-           ]
-
-routerDebug debug db (Object o) = do
-     when debug . liftIO $ print (o,parseMaybe p o)
-     case parseMaybe p o of
-        Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
-        Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
-        _ -> return $ Just $ invalidRequest Nothing
-  where
-        -- Handles both method and notification, depending on the id value.
-        call :: Text -> [Value] -> Maybe Value -> io (Maybe Value)
-        call nm args (Just theId) = case lookup nm db of
-               Just fn -> do v <- fn args
-                             return $ Just $ object
-                                    [ "jsonrpc" .= ("2.0" :: Text)
-                                    , "result" .= v
-                                    , "id" .= theId
-                                    ]
-               Nothing -> return $ Just $ methodNotFound theId
-        call nm args Nothing = case lookup nm db of
-               Just fn -> do _ <- fn args
-                             return $ Nothing
-               Nothing -> do _ <- fail $ "Method: "++(unpack nm)++" not found"
-                             return $ Nothing
-
-        p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
-        p o' =  (,,,) <$> o' .:  "jsonrpc"
-                      <*> o' .:  "method"
-                      <*> o' .:? "params"
-                      -- We parse "id" directly, because "id":null is
-                      -- not the same as having no "id" tag in JSON-RPC.
-                      <*> optional (o' .: "id")
-
--- server db _  = return $ Just $ invalidRequest
-
-errorResponse :: Int -> Text -> Value -> Value
-errorResponse code msg theId = object
-        [ "jsonrpc" .= ("2.0" :: Text)
-        , "error" .= object [ "code"  .= code
-                            , "message" .= msg
-                            ]
-        , "id" .= theId
-        ]
-
-invalidRequest :: Maybe Value -> Value
-invalidRequest e = errorResponse (-32600) "Invalid Request" $ case e of
-        Nothing -> Null
-        Just v  -> v
-
-methodNotFound :: Value -> Value
-methodNotFound = errorResponse (-32601) "Method not found"
-
-
-data TaggedCall a = TaggedCall Text [a] Value
-
-instance Show a => Show (TaggedCall a) where
-   show (TaggedCall nm args tag) = unpack nm ++
-           "<" ++ show tag ++ ">" ++
-           if  null args 
-           then "()"
-           else  concat [ t : show x 
-                        | (t,x) <- ('(':repeat ',') `zip` args 
-                        ] ++ ")"
-
-instance ToJSON a => ToJSON (TaggedCall a) where
-  toJSON (TaggedCall nm args tag) = object $
-          [ "jsonrpc" .= ("2.0" :: Text)
-          , "method" .= nm
-          , "params" .= map toJSON args
-          , "id" .= tag
-          ]
-           
-instance FromJSON a => FromJSON (TaggedCall a) where           
-  parseJSON (Object o) = TaggedCall <$> o .: "method"
-                                       <*> o .: "params"
-                                       <*> o .: "id"
-  parseJSON _ = fail "not an Object when parsing a TaggedCall"
-  
-data Call a = Call Text [a] 
-
-instance Show a => Show (Call a) where
-   show (Call nm args) = unpack nm ++ 
-           if  null args 
-           then "()"
-           else  concat [ t : show x 
-                        | (t,x) <- ('(':repeat ',') `zip` args 
-                        ] ++ ")"
-
-instance ToJSON a => ToJSON (Call a) where
-  toJSON (Call nm args) = object $
-          [ "jsonrpc" .= ("2.0" :: Text)
-          , "method" .= nm
-          , "params" .= map toJSON args
-          ]
-           
-instance FromJSON a => FromJSON (Call a) where           
-  parseJSON (Object o) = Call <$> o .: "method"
-                              <*> o .: "params"
-  parseJSON _ = fail "not an Object when parsing a Call"  
-  
+-- it might be cleaner to have the state be the Value, not the Call ().
+sendStrong :: Session -> RPC a -> StateT [Call ()] IO a
+sendStrong _ (Pure a)   = return a
+sendStrong s (Bind f k) = sendStrong s f >>= sendStrong s . k
+sendStrong s (Ap f a)   = sendStrong s f <*> sendStrong s a
+sendStrong _ (Fail msg) = fail msg   -- Need to think about this
+sendStrong s (Command nm args) = do
+      modify $ \ st -> st ++ [Notification nm args]
+      return ()
+sendStrong s (Procedure nm args) = do
+        st <- get
+        put []
+        let toSend = map toJSON st ++ [toJSON $ Method nm args (toJSON i)]
+        -- This use of 'toJSON' is really building an Array
+        r <- liftIO $ remoteSession s $ Sync $ toJSON $ toSend
+        case fromJSON r of
+                  Success [Response v tag]
+                          | tag == toJSON i -> return v
+                          | otherwise       -> fail "remote error: tag numbers do not match"
+                  _ -> fail "remote error: failing response returned"
+  where i = 1 :: Int

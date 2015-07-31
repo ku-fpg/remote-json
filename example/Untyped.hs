@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Main where
+module Untyped where
 
 import Control.Monad        
 import Control.Monad.Remote.JSON
@@ -12,15 +12,13 @@ import Data.Text (Text)
 import qualified Data.Text.IO as IO
 import System.Random
 
-import Server
-
-main = do
-        t <- send session $ do
-                notification "say" [String "Hello!"]
-                notification "say" [String "Hola!"]
-                t <- method "temperature" [] 
-                notification "say" [String "Yoohoo!"]
-                notification "say" [String "Aloha!"]
+untyped :: Session -> IO ()
+untyped s = do
+        t <- send s $ do
+                notification "say" (List [String "Hello, "])
+                notification "say" (List [String "World!"])
+                t <- method "temperature" None
                 return t
         print t                      
-        
+        r <- send s $ method "fib" (List [Number 10])
+        print r
