@@ -46,12 +46,12 @@ import qualified Data.Vector as V
 
 
 data RPC :: * -> * where
-    Pure         :: a ->                              RPC a
-    Bind         :: RPC a -> (a -> RPC b) ->          RPC b
-    Ap           :: RPC (a -> b) -> RPC a ->          RPC b
-    Procedure       :: Text -> Args -> RPC Value
-    Command :: Text -> Args ->                RPC ()
-    Fail         :: String ->                         RPC a
+    Pure         :: a ->                     RPC a
+    Bind         :: RPC a -> (a -> RPC b) -> RPC b
+    Ap           :: RPC (a -> b) -> RPC a -> RPC b
+    Procedure    :: Text -> Args ->          RPC Value
+    Command      :: Text -> Args ->          RPC ()
+    Fail         :: String ->                RPC a
   deriving Typeable
 
 instance Functor RPC where
@@ -81,10 +81,6 @@ result :: (Monad m, FromJSON a) => m Value -> m a
 result m = do
         Success r <- liftM fromJSON m
         return r
-
-type CommandList = [Value]
-type SessionID = Int
-type MyState = (CommandList, SessionID)
 
 data Session = Session 
         { remoteMonad       :: RemoteType
