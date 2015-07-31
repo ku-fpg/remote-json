@@ -50,6 +50,17 @@ traceTransportAPI msg f (Send v)  = do
             Just v -> liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode r))
           return r
 
+-- | A tracing version of the 'Call a -> m a' natural transformation.
+traceCallAPI :: MonadIO m => String -> (Call a -> m a) -> (Call a -> m a)
+traceCallAPI msg f c@(Method nm args i) = do
+          liftIO $ putStrLn $ msg ++ " method " ++ show c
+          r <- f c
+          liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))
+          return r
+traceCallAPI msg f c@(Notification nm args) = do
+          liftIO $ putStrLn $ msg ++ " notification " ++ show c
+          f c
+
 -- | A tracing version of the Session, that states, as JSON objects, what is sent and received.
 traceSession :: String -> Session -> Session
 traceSession msg s = s { remoteSession = traceSessionAPI msg (remoteSession s) }
