@@ -5,6 +5,7 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DataKinds #-}
 
 {-|
 Module:      Control.Monad.Remote.JSON where
@@ -96,26 +97,50 @@ session = Session Weak Weak
 
 -- 
 send :: Session -> RPC a -> IO a
-send session@(Session Weak   _ interp) m = evalStateT (send' session m) ([],1)
+send session m = sendWeak session m
+{-
 send session@(Session Strong _ interp) m =
         do (a,s) <- runStateT (send' session m) ([],1)
            case s of
              ([],_) -> return ()
              (xs,_) -> do void $ interp (Async (toJSON xs))
            return a
+-}
+data SendState :: RemoteType -> * where
+ WeakState :: Int -> SendState Weak
 
-send' :: Session -> RPC a -> StateT MyState IO a
-send' _ (Pure a) = return a
-send' s (Bind f k) = send' s f >>= send' s . k
-send' s (Ap f a) = send' s f <*> send' s a
-send' (Session t _ interp) (Procedure nm args) = do
+initWeakState :: SendState Weak
+initWeakState = WeakState 1
+
+sendWeak :: Session -> RPC a -> IO a
+sendWeak _ (Pure a)   = return a
+sendWeak s (Bind f k) = sendWeak s f >>= sendWeak s . k
+sendWeak s (Ap f a)   = sendWeak s f <*> sendWeak s a
+sendWeak _ (Fail msg) = fail msg   -- Need to think about this
+sendWeak s (Procedure nm args) = do
+        r <- remoteSession s $ Sync $ toJSON $ Method nm args (toJSON i)
+        case fromJSON r of
+                  Success (Response v tag) 
+                          | tag == toJSON i -> return v
+                          | otherwise       -> fail "remote error: tag numbers do not match"
+                  _ -> fail "remote error: failing response returned"
+  where i = 1 :: Int
+
+sendWeak s (Command nm args) = do
+      remoteSession s $ Async $ toJSON $ Notification nm args
+
+--sendSync :: (forall m a . MonadIO m => SessionAPI a -> m a) -> Value -> [(Int,Value)]
+--sendSync s 
+
+{-
+{-
 
       (q,sessionId) <- get
-      when ((q /= []) && t == Strong) $ liftIO $ interp (Async (toJSON q))
-
       put ([],sessionId + 1)
-      
-      v <- liftIO $ interp $ Sync $ toJSON $ Method nm args $ Number $ fromIntegral $ sessionId
+
+      -- There should only be one reply here
+      v <- liftIO $ interp $ Sync $ toJSON $
+              (q ++ [ toJSON $ Method nm args $ Number $ fromIntegral $ sessionId ])
 
       let p :: Object -> Parser (Text,Value, Maybe Value)
           p o =  (,,) <$> o .: "jsonrpc"
@@ -149,9 +174,9 @@ send' (Session t _ interp) (Procedure nm args) = do
 
                                       _              -> do return Null
         _ -> return Null
+-}
 
-
-send' (Session t _ interp) (Command nm args) = do
+{-
       let m = toJSON $ Notification nm args
       case t of
          Strong -> do (list, id') <-get
@@ -160,3 +185,5 @@ send' (Session t _ interp) (Command nm args) = do
 
 
 
+-}
+-}
