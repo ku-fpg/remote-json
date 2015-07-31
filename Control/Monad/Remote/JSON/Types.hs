@@ -122,19 +122,33 @@ instance FromJSON Tag where
   parseJSON (Object o) = Tag <$> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Tag"
 
-data ErrorResponse = ErrorResponse Int Text Value
+data ErrorResponse = ErrorResponse ErrorMessage Value
 
 instance ToJSON ErrorResponse where
-  toJSON (ErrorResponse code msg theId) = object
+  toJSON (ErrorResponse msg theId) = object
                 [ "jsonrpc" .= ("2.0" :: Text)
-                , "error" .= object [ "code"  .= code
-                                    , "message" .= msg
-                                    ]
-                , "id" .= theId
+                , "error"   .= msg
+                , "id"      .= theId
                 ]
 
 instance FromJSON ErrorResponse where
---  parseJSON (Object o) = ErrorResponse <$> o .: "method"
---                                       <*> (o .: "params" <|> return None)
-  parseJSON _ = fail "not an Object when parsing a Call ()"  
+  parseJSON (Object o) = ErrorResponse
+                          <$> o .: "error"
+                          <*> o .: "id"
+
+  parseJSON _ = fail "not an Object when parsing a "  
+
+data ErrorMessage = ErrorMessage Int Text
+
+instance ToJSON ErrorMessage where
+  toJSON (ErrorMessage code msg) = object 
+          [ "code"  .= code
+          , "message" .= msg
+          ]
+
+instance FromJSON ErrorMessage where
+  parseJSON (Object o) = ErrorMessage
+                          <$> o .: "code"
+                          <*> o .: "message"
+
         
