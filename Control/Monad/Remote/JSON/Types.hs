@@ -51,7 +51,7 @@ data Call :: * -> * where
   Notification   :: Text -> Args          -> Call ()
 
 instance Show (Call a) where
-   show (Method nm args tag) = unpack nm ++ show args ++ "#" ++ show tag
+   show (Method nm args tag) = unpack nm ++ show args ++ "#" ++ LT.unpack (decodeUtf8 (encode tag))
    show (Notification nm args) = unpack nm ++ show args
 
 instance ToJSON (Call Value) where
