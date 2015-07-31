@@ -59,6 +59,7 @@ Test-Suite test-example
                  exceptions             >= 0.8 && < 0.9,
                  mtl                    >= 2.1.2,
                  aeson                  >= 0.8 && < 0.10,
+                 natural-transformation >= 0.2 && < 0.3,
                  unordered-containers   >= 0.2 && < 0.3,
                  random                 >= 1.1 && < 1.2,
                  scientific             >= 0.3 && < 0.4,
