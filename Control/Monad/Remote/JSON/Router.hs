@@ -15,7 +15,14 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON.Router where
+module Control.Monad.Remote.JSON.Router 
+        ( router
+        , methodNotFound
+        , invalidParams
+        , parseError
+        , Call(..)
+        , Args(..)
+        ) where
         
 import           Control.Applicative
 import           Control.Exception.Base (PatternMatchFail(..))

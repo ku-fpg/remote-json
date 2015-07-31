@@ -37,9 +37,6 @@ f (Method "error" (List [String msg]) _) = error $ show msg
 f (Method "fail" (List [String msg]) _) = fail $ show msg
 f _ = methodNotFound
 
---f (Method nm args _) = fail $ "missing method : " ++ show (nm,args)
---f (Notification nm args) = fail $ "missing notification : " ++ show (nm,args)
-
 -- Avoid skolem
 newtype C = C (forall a . Call a -> IO a)
 
