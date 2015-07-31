@@ -43,11 +43,11 @@ traceSessionAPI msg f (Async v) = do
 -- | A tracing natural transformation morphism over the Transport API.
 traceTransportAPI :: MonadIO m => String -> (TransportAPI a -> m a) -> (TransportAPI a -> m a)
 traceTransportAPI msg f (Send v)  = do
-          liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode v))
+          liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f (Send v)
           case r of
             Nothing -> liftIO $ putStrLn $ msg ++ "// No response"
-            Just v -> liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode r))
+            Just v -> liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
 
 -- | A tracing version of the 'Call a -> m a' natural transformation.
