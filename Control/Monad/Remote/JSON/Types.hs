@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DataKinds #-}
 
 {-|
 Module:      Control.Monad.Remote.JSON where
@@ -121,23 +122,7 @@ newtype Tag = Tag Value deriving Show
 instance FromJSON Tag where           
   parseJSON (Object o) = Tag <$> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Tag"
-
-data ErrorResponse = ErrorResponse ErrorMessage Value
-
-instance ToJSON ErrorResponse where
-  toJSON (ErrorResponse msg theId) = object
-                [ "jsonrpc" .= ("2.0" :: Text)
-                , "error"   .= msg
-                , "id"      .= theId
-                ]
-
-instance FromJSON ErrorResponse where
-  parseJSON (Object o) = ErrorResponse
-                          <$> o .: "error"
-                          <*> o .: "id"
-
-  parseJSON _ = fail "not an Object when parsing a "  
-
+ 
 data ErrorMessage = ErrorMessage Int Text
 
 instance ToJSON ErrorMessage where
@@ -150,5 +135,30 @@ instance FromJSON ErrorMessage where
   parseJSON (Object o) = ErrorMessage
                           <$> o .: "code"
                           <*> o .: "message"
+  parseJSON _ = fail "not an Object when parsing an ErrorMessage"
 
-        
+data Response 
+        = Response Value             Value
+        | ErrorResponse ErrorMessage Value
+
+instance ToJSON Response where
+  toJSON (Response r theId) = object
+                [ "jsonrpc" .= ("2.0" :: Text)
+                , "result"  .= r
+                , "id"      .= theId
+                ]
+  toJSON (ErrorResponse msg theId) = object
+                [ "jsonrpc" .= ("2.0" :: Text)
+                , "error"   .= msg
+                , "id"      .= theId
+                ]
+
+instance FromJSON Response where
+  parseJSON (Object o) = 
+          pure Response   <* (o .: "jsonrpc" :: Parser String)   -- TODO: check this returns "2.0"
+                          <*> o .: "result"
+                          <*> o .: "id"
+      <|> ErrorResponse   <$> o .: "error"
+                          <*> o .: "id"
+  parseJSON _ = fail "not an Object when parsing an Response"
+
