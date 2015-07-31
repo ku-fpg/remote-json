@@ -95,17 +95,15 @@ data Session = Session
 session :: (forall a . SessionAPI a -> IO a) -> Session
 session = Session Weak Weak
 
--- 
+-- | 'send' the remote monad `RPC` to the remote site, for execution.
 send :: Session -> RPC a -> IO a
-send session m = sendWeak session m
-{-
-send session@(Session Strong _ interp) m =
-        do (a,s) <- runStateT (send' session m) ([],1)
-           case s of
-             ([],_) -> return ()
-             (xs,_) -> do void $ interp (Async (toJSON xs))
-           return a
--}
+send session m = case remoteMonad session of
+        Weak   -> sendWeak session m
+        Strong -> do (a,st) <- runStateT (sendStrong session m) []
+                     when (not (null st)) $ do
+                        void $ remoteSession session $ Async $ toJSON st
+                     return a
+
 data SendState :: RemoteType -> * where
  WeakState :: Int -> SendState Weak
 
@@ -117,6 +115,8 @@ sendWeak _ (Pure a)   = return a
 sendWeak s (Bind f k) = sendWeak s f >>= sendWeak s . k
 sendWeak s (Ap f a)   = sendWeak s f <*> sendWeak s a
 sendWeak _ (Fail msg) = fail msg   -- Need to think about this
+sendWeak s (Command nm args) =
+      remoteSession s $ Async $ toJSON $ Notification nm args
 sendWeak s (Procedure nm args) = do
         r <- remoteSession s $ Sync $ toJSON $ Method nm args (toJSON i)
         case fromJSON r of
@@ -126,64 +126,24 @@ sendWeak s (Procedure nm args) = do
                   _ -> fail "remote error: failing response returned"
   where i = 1 :: Int
 
-sendWeak s (Command nm args) = do
-      remoteSession s $ Async $ toJSON $ Notification nm args
-
---sendSync :: (forall m a . MonadIO m => SessionAPI a -> m a) -> Value -> [(Int,Value)]
---sendSync s 
-
-{-
-{-
-
-      (q,sessionId) <- get
-      put ([],sessionId + 1)
-
-      -- There should only be one reply here
-      v <- liftIO $ interp $ Sync $ toJSON $
-              (q ++ [ toJSON $ Method nm args $ Number $ fromIntegral $ sessionId ])
-
-      let p :: Object -> Parser (Text,Value, Maybe Value)
-          p o =  (,,) <$> o .: "jsonrpc"
-                      <*> o .: "result"
-                      <*> o .: "id"
-
-      let p2 :: Object -> Parser (Text,Value)
-          p2 o =  (,) <$> o .: "jsonrpc"
-                     <*> o .: "error"
-
-      let p3 :: Object -> Parser (Value,Value)
-          p3 o =  (,) <$> o .: "code"
-                     <*> o .: "message"
-      let package = (append . (flip append (" ")) . pack . show)
-      let handleError:: Object -> IO Value
-          handleError o = do putStr "Error: "
-                             case parseMaybe p3 o of
-                               Just ((Number code),(String mesg)) ->
-                                   -- Create error message
-                                   return $ String $ package code mesg
-                               _  -> return Null
-      case v of
-        Object o -> case parseMaybe p o of
-                  Just ("2.0",v', (Just retId)) -> do
-                                               if retId == (toJSON sessionId) then
-                                                 return v'
-                                               else
-                                                 fail "ID's didn't match"
-                  _               -> case parseMaybe p2 o of
-                                      Just("2.0",(Object v')) -> liftIO $ handleError v'
-
-                                      _              -> do return Null
-        _ -> return Null
--}
-
-{-
-      let m = toJSON $ Notification nm args
-      case t of
-         Strong -> do (list, id') <-get
-                      put (list ++ [m], id')
-         Weak -> liftIO $ interp (Async m)
-
-
-
--}
--}
+-- it might be cleaner to have the state be the Value, not the Call ().
+sendStrong :: Session -> RPC a -> StateT [Call ()] IO a
+sendStrong _ (Pure a)   = return a
+sendStrong s (Bind f k) = sendStrong s f >>= sendStrong s . k
+sendStrong s (Ap f a)   = sendStrong s f <*> sendStrong s a
+sendStrong _ (Fail msg) = fail msg   -- Need to think about this
+sendStrong s (Command nm args) = do
+      modify $ \ st -> st ++ [Notification nm args]
+      return ()
+sendStrong s (Procedure nm args) = do
+        st <- get
+        put []
+        let toSend = map toJSON st ++ [toJSON $ Method nm args (toJSON i)]
+        -- This use of 'toJSON' is really building an Array
+        r <- liftIO $ remoteSession s $ Sync $ toJSON $ toSend
+        case fromJSON r of
+                  Success [Response v tag]
+                          | tag == toJSON i -> return v
+                          | otherwise       -> fail "remote error: tag numbers do not match"
+                  _ -> fail "remote error: failing response returned"
+  where i = 1 :: Int
