@@ -25,7 +25,9 @@ module Control.Monad.Remote.JSON(
         send,
         Session(..),
         RemoteType(..),
-        session
+        session,
+        -- * Types
+        Args(..)
   ) where
 
 import           Control.Applicative

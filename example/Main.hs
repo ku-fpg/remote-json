@@ -1,5 +1,10 @@
 module Main where
         
+import Untyped
 import Session       
 
-main = print "Hello"
+main = do
+        putStrLn "## Untyped ##"
+        sequence_ [ untyped s
+                  | s <- sessions 
+                  ]

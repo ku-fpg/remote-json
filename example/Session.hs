@@ -2,11 +2,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
-module Session (rootSession) where
+module Session (sessions) where
 
 import Control.Monad        
 import Control.Monad.Remote.JSON
+import Control.Monad.Remote.JSON.Debug
 import Control.Monad.Remote.JSON.Router
+import Control.Monad.Remote.JSON.Types (transport)
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -16,8 +18,16 @@ import qualified Data.Text.IO as IO
 import System.Random
 import Data.Scientific as Scientific
 
-rootSession :: Session --   sync                                async
-rootSession = undefined
+sessions :: [Session]
+sessions = 
+  [ session $ transport $ router sequence $ remote 
+  , session $ traceSessionAPI "session"
+            $ transport                     $ router sequence $ remote
+  , session $ transport $ traceTransportAPI "transport"
+                        $ router sequence $ remote
+  , session $ transport $ router sequence $ traceCallAPI "call"
+                                          $ remote ]
+
 
 remote :: Call a -> IO a
 remote (Notification "say" args) = case args of
@@ -35,7 +45,7 @@ remote (Method "fib" args _) = case args of
           Just i -> return $ Number $ fromIntegral $ fib $ i
           _ -> invalidParams
     _ ->  invalidParams
-  where fib :: Int -> Integer
+  where fib :: Int -> Int
         fib n = if n < 2 then 1 else fib(n-1)+fib(n-2)
 f _ = methodNotFound
 
