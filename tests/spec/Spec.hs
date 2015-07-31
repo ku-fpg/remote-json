@@ -26,12 +26,15 @@ f (Method "subtract" (Named xs) _)
         | Just (Number a) <- lookup "minuend" xs
         , Just (Number b) <- lookup "subtrahend" xs
         = return $ Number (a - b)
-f (Method "sum" (List xs) _) = return $ Number $ sum $ [ x | Number x <- xs ]
-f (Method "sum" None _) = return $ Number $ 0
+f (Method "sum" args _) = case args of
+      List xs -> return $ Number $ sum $ [ x | Number x <- xs ]
+      _ -> invalidParams
 f (Method "get_data" None _) = return $ toJSON [String "hello", Number 5]
 f (Notification "update" _) = return $ ()
 f (Notification "notify_hello" _) = return $ ()
 f (Notification "notify_sum" _)   = return $ ()
+f (Method "error" (List [String msg]) _) = error $ show msg
+f (Method "fail" (List [String msg]) _) = fail $ show msg
 f _ = methodNotFound
 
 --f (Method nm args _) = fail $ "missing method : " ++ show (nm,args)

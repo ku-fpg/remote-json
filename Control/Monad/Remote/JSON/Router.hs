@@ -72,9 +72,17 @@ simpleRouter f v = case parser of
                        [ "jsonrpc" .= ("2.0" :: Text)
                        , "result" .= v
                        , "id" .= tag
-                       ]) `catch` \ (e :: PatternMatchFail) -> 
+                       ]) `catches` 
+                          [ Handler $ \ (e :: MethodNotFound) -> 
                                return $ Just $ toJSON 
                                       $ errorResponse (-32601) "Method not found" tag
+                          , Handler $ \ (e :: InvalidParams) -> 
+                               return $ Just $ toJSON 
+                                      $ errorResponse (-32602) "Invalid params" tag
+                          , Handler $ \ (e :: SomeException) ->
+                               return $ Just $ toJSON 
+                                      $ errorResponse (-32603) "Internal error" tag                                
+                          ]
 
 
         note :: Call () -> m (Maybe Value)
@@ -93,7 +101,21 @@ invalidRequest = errorResponse (-32600) "Invalid Request" Null
 parseError :: Value
 parseError = errorResponse (-32700) "Parse error" Null
 
+data MethodNotFound = MethodNotFound 
+  deriving (Show, Typeable)
+
+instance Exception MethodNotFound
+
 -- | Throw this exception when a 'Call a -> IO a' fails to match a method
 --   or notification.
 methodNotFound :: MonadThrow m => m a
-methodNotFound = throwM $ PatternMatchFail $ "methodNotFound"
+methodNotFound = throwM $ MethodNotFound
+
+data InvalidParams = InvalidParams 
+  deriving (Show, Typeable)
+
+instance Exception InvalidParams
+
+-- | Throw this for when a 'Call a -> IO a' method matches, but has invalid params.
+invalidParams :: MonadThrow m => m a
+invalidParams = throwM $ InvalidParams

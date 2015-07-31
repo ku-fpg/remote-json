@@ -86,3 +86,23 @@
         {"jsonrpc": "2.0", "method": "notify_sum", "params": [1,2,4]},
         {"jsonrpc": "2.0", "method": "notify_hello", "params": [7]}
     ]
+
+# Extra test: invalid params
+
+--> {"jsonrpc": "2.0", "method": "sum", "params": {}, "id": "1"}
+<-- {"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"},"id":"1"}
+
+--> {"jsonrpc": "2.0", "method": "sum", "id": "1"}
+<-- {"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"},"id":"1"}
+
+# Extra test: error
+
+--> {"jsonrpc": "2.0", "method": "error", "params": ["Error!"], "id": "1"}
+<-- {"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":"1"}
+
+# Extra test: fail
+
+--> {"jsonrpc": "2.0", "method": "fail", "params": ["Fail!"], "id": "1"}
+<-- {"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":"1"}
+
+
