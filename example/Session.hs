@@ -19,7 +19,15 @@ import System.Random
 import Data.Scientific as Scientific
 
 sessions :: [Session]
-sessions = 
+sessions = concat
+         [ [ s
+           , s { remoteMonad = Strong }
+           ]
+         | s <- sessions'
+         ]
+
+sessions' :: [Session]
+sessions' = 
   [ session $ transport $ router sequence $ remote 
   , session $ traceSessionAPI "session"
             $ transport                     $ router sequence $ remote

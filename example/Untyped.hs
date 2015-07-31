@@ -12,8 +12,6 @@ import Data.Text (Text)
 import qualified Data.Text.IO as IO
 import System.Random
 
-import Session
-
 untyped :: Session -> IO ()
 untyped s = do
         t <- send s $ do
