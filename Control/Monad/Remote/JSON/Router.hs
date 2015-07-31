@@ -42,7 +42,7 @@ router :: MonadCatch m
        -> TransportAPI a -> m a
 router s f (Send v@(Object {})) = simpleRouter f v
 router s f (Send v@(Array a)) 
-  | V.null a = return $ Just $ invalidRequest (Just Null)
+  | V.null a = return $ Just $ invalidRequest
   | otherwise = do
         rs <- s (map (simpleRouter f) $ V.toList a)
         case [ v | Just v <- rs ] of
@@ -58,7 +58,7 @@ simpleRouter :: forall m . MonadCatch m
        -> Value -> m (Maybe Value)
 simpleRouter f v = case parser of
     Success m -> m
-    Error e1 ->  return $ Just $ invalidRequest $ Nothing
+    Error e1 ->  return $ Just $ invalidRequest
   where
         -- This does not support all the error messages (yet)
         parser :: Result (m (Maybe Value))
@@ -73,93 +73,27 @@ simpleRouter f v = case parser of
                        , "result" .= v
                        , "id" .= tag
                        ]) `catch` \ (e :: PatternMatchFail) -> 
-                               return $ Just $ errorResponse (-32601) "Method not found" tag
+                               return $ Just $ toJSON 
+                                      $ errorResponse (-32601) "Method not found" tag
+
 
         note :: Call () -> m (Maybe Value)
         note c = (f c >> return Nothing) `catchAll` \ _ -> return Nothing
-
-
-{-
-router' opts call v@(Array a) = do
-        rs <- mapM (simpleRouter opts call) $ V.toList a
-        case [ v | Just v <- rs ] of
-          [] -> return Nothing
-          vs -> return (Just (toJSON vs))
-router' opts call _ = error "router'" -- TODO fill with the correct value to return
-
-
-
--- | 'router' takes a list of name/function pairs,
--- and dispatches them, using the JSON-RPC protocol.
-router :: MonadIO io => [ (Text, [Value] -> io Value) ] -> Value -> io (Maybe Value)
-router = routerDebug False
-
--- | Like 'router', but with the ability to configure whether debug output is
--- printed to the screen.
-routerDebug :: forall io. MonadIO io => Bool -> [ (Text, [Value] -> io Value) ] -> Value -> io (Maybe Value)
-routerDebug debug db (Array a) = do
-    let cmds = V.toList a
-    when debug . liftIO $ print cmds
-    res <- sequence $ map (routerDebug debug db) cmds
-    return $ Just $ object
-           [ "jsonrpc" .= ("2.0" :: Text)
-           , "result" .= (toJSON res)
-           ]
-
-routerDebug debug db (Object o) = do
-     when debug . liftIO $ print (o,parseMaybe p o)
-     case parseMaybe p o of
-        Just ("2.0",nm,Just (Array args),theId) -> call nm (V.toList args) theId
-        Just (_,_,_,theId) -> return $ Just $ invalidRequest theId
-        _ -> return $ Just $ invalidRequest Nothing
-  where
-        -- Handles both method and notification, depending on the id value.
-        call :: Text -> [Value] -> Maybe Value -> io (Maybe Value)
-        call nm args (Just theId) = case lookup nm db of
-               Just fn -> do v <- fn args
-                             return $ Just $ object
-                                    [ "jsonrpc" .= ("2.0" :: Text)
-                                    , "result" .= v
-                                    , "id" .= theId
-                                    ]
-               Nothing -> return $ Just $ methodNotFound theId
-        call nm args Nothing = case lookup nm db of
-               Just fn -> do _ <- fn args
-                             return $ Nothing
-               Nothing -> do _ <- fail $ "Method: "++(unpack nm)++" not found"
-                             return $ Nothing
-
-        p :: Object -> Parser (Text,Text,Maybe Value,Maybe Value)
-        p o' =  (,,,) <$> o' .:  "jsonrpc"
-                      <*> o' .:  "method"
-                      <*> o' .:? "params"
-                      -- We parse "id" directly, because "id":null is
-                      -- not the same as having no "id" tag in JSON-RPC.
-                      <*> optional (o' .: "id")
-
--- server db _  = return $ Just $ invalidRequest
--}
-     
+  
 errorResponse :: Int -> Text -> Value -> Value
-errorResponse code msg theId = object
-        [ "jsonrpc" .= ("2.0" :: Text)
-        , "error" .= object [ "code"  .= code
-                            , "message" .= msg
-                            ]
-        , "id" .= theId
-        ]
+errorResponse code msg theId = toJSON $
+        ErrorResponse (ErrorMessage code msg) theId
 
-invalidRequest :: Maybe Value -> Value
-invalidRequest e = errorResponse (-32600) "Invalid Request" $ case e of
-        Nothing -> Null
-        Just v  -> v
+invalidRequest :: Value
+invalidRequest = errorResponse (-32600) "Invalid Request" Null
 
---methodNotFound :: Value -> Value
---methodNotFound = errorResponse (-32601) "Method not found"
 
--- For use when parsing to a Send fails
+-- | For use when parsing to a JSON value fails inside a server,
+--   before calling the router
 parseError :: Value
 parseError = errorResponse (-32700) "Parse error" Null
 
+-- | Throw this exception when a 'Call a -> IO a' fails to match a method
+--   or notification.
 methodNotFound :: MonadThrow m => m a
 methodNotFound = throwM $ PatternMatchFail $ "methodNotFound"
