@@ -22,6 +22,7 @@ module Control.Monad.Remote.JSON.Router
         , parseError
         , Call(..)
         , Args(..)
+        , TransportAPI(..)
         ) where
         
 import           Control.Applicative
