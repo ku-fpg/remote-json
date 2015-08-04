@@ -24,7 +24,9 @@ module Control.Monad.Remote.JSON(
         result,
         -- * Invoke the JSON RPC Remote Monad
         send,
-        Session(..),
+        Session,
+	remoteSession,
+	remoteMonad,
         RemoteType(..),
         session,
         -- * Types
@@ -35,6 +37,7 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.State
+import           Control.Monad.Catch
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -51,7 +54,7 @@ data RPC :: * -> * where
     Ap           :: RPC (a -> b) -> RPC a -> RPC b
     Procedure    :: Text -> Args ->          RPC Value
     Command      :: Text -> Args ->          RPC ()
-    Fail         :: String ->                RPC a
+    Throw        :: (Exception e) => e ->    RPC a
   deriving Typeable
 
 instance Functor RPC where
@@ -65,7 +68,7 @@ instance Monad RPC where
   return     = pure
   (>>=)      = Bind
   (>>) m1 m2 = flip const <$> m1 <*> m2  -- so that the SAF can take advantage of this
-  fail       = Fail
+  fail       = Throw . userError 
 
 -- We use the terms method and notification because this is the terminology
 -- used by JSON-RPC. They *are* remote monad procedures and commands.
@@ -84,12 +87,11 @@ result m = do
 
 data Session = Session 
         { remoteMonad       :: RemoteType
-        , remoteApplicative :: RemoteType
         , remoteSession     :: forall a. SessionAPI a -> IO a
         }
    
 session :: (forall a . SessionAPI a -> IO a) -> Session
-session = Session Weak Weak
+session = Session Weak 
 
 -- | 'send' the remote monad `RPC` to the remote site, for execution.
 send :: Session -> RPC a -> IO a
@@ -110,7 +112,7 @@ sendWeak :: Session -> RPC a -> IO a
 sendWeak _ (Pure a)   = return a
 sendWeak s (Bind f k) = sendWeak s f >>= sendWeak s . k
 sendWeak s (Ap f a)   = sendWeak s f <*> sendWeak s a
-sendWeak _ (Fail msg) = fail msg   -- Need to think about this
+sendWeak _ (Throw e) = throwM e
 sendWeak s (Command nm args) =
       remoteSession s $ Async $ toJSON $ Notification nm args
 sendWeak s (Procedure nm args) = do
@@ -127,7 +129,13 @@ sendStrong :: Session -> RPC a -> StateT [Call ()] IO a
 sendStrong _ (Pure a)   = return a
 sendStrong s (Bind f k) = sendStrong s f >>= sendStrong s . k
 sendStrong s (Ap f a)   = sendStrong s f <*> sendStrong s a
-sendStrong _ (Fail msg) = fail msg   -- Need to think about this
+sendStrong s (Throw e) = do
+                      st <- get
+                      put []
+                      let toSend = map toJSON st
+                      liftIO $ remoteSession s $ Async $ toJSON $ toSend
+                      throwM e
+
 sendStrong s (Command nm args) = do
       modify $ \ st -> st ++ [Notification nm args]
       return ()

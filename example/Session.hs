@@ -55,5 +55,5 @@ remote (Method "fib" args _) = case args of
     _ ->  invalidParams
   where fib :: Int -> Int
         fib n = if n < 2 then 1 else fib(n-1)+fib(n-2)
-f _ = methodNotFound
+remote _ = methodNotFound
 
