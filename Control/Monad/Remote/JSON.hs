@@ -70,6 +70,9 @@ instance Monad RPC where
   (>>) m1 m2 = flip const <$> m1 <*> m2  -- so that the SAF can take advantage of this
   fail       = Throw . userError 
 
+instance MonadThrow RPC where
+  throwM = Throw 
+
 -- We use the terms method and notification because this is the terminology
 -- used by JSON-RPC. They *are* remote monad procedures and commands.
 
