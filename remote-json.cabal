@@ -10,6 +10,7 @@ maintainer:          andygill@ku.edu
 category:            Network
 build-type:          Simple
 extra-source-files:  README.md
+tested-with:         GHC == 7.8.4, GHC == 7.10.3
 cabal-version:       >=1.10
 
 library
