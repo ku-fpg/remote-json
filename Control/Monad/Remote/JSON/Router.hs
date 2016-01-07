@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -31,6 +32,7 @@ import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.State
+import           Control.Natural
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -46,8 +48,7 @@ import qualified Data.Vector as V
 --   We control this using the first argument.         
 router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
-       -> (forall a . Call a -> m a) 
-       -> TransportAPI a -> m a
+       -> (Call ~> m) -> (TransportAPI ~> m)
 router s f (Send v@(Object {})) = simpleRouter f v
 router s f (Send v@(Array a)) 
   | V.null a = return $ Just $ invalidRequest

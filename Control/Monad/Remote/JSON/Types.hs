@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE KindSignatures #-}
@@ -20,17 +21,16 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Types where
 
 import           Control.Applicative
-import           Control.Monad
-import           Control.Monad.State
+import           Control.Natural
 
 import           Data.Aeson
 import           Data.Aeson.Types
 import qualified Data.HashMap.Strict as HM
-import           Data.Text(Text, append, pack, unpack)
+import           Data.Text(Text, unpack)
 
 import qualified Data.Text.Lazy as LT
 import           Data.Text.Lazy.Encoding(decodeUtf8)
-import           Data.Typeable
+--import           Data.Typeable
 import qualified Data.Vector as V
 
 data SessionAPI :: * -> * where
@@ -40,7 +40,7 @@ data SessionAPI :: * -> * where
 data TransportAPI :: * -> * where
    Send :: Value -> TransportAPI (Maybe Value)
      
-transport :: (Functor f) => (forall a . TransportAPI a -> f a) -> (SessionAPI a -> f a)
+transport :: (Functor f) => (TransportAPI ~> f) -> (SessionAPI ~> f)
 transport f (Sync v)  = maybe (error "no returned value") id <$> f (Send v) 
 transport f (Async v) = const ()                             <$> f (Send v)
 

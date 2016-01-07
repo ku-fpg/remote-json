@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE KindSignatures #-}
@@ -25,8 +26,8 @@ module Control.Monad.Remote.JSON(
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session,
-	remoteSession,
-	remoteMonad,
+      	remoteSession,
+      	remoteMonad,
         RemoteType(..),
         session,
         -- * Types
@@ -38,6 +39,7 @@ import           Control.Monad
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.State
 import           Control.Monad.Catch
+import           Control.Natural
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -90,10 +92,10 @@ result m = do
 
 data Session = Session 
         { remoteMonad       :: RemoteType
-        , remoteSession     :: forall a. SessionAPI a -> IO a
+        , remoteSession     :: SessionAPI ~> IO
         }
    
-session :: (forall a . SessionAPI a -> IO a) -> Session
+session :: (SessionAPI ~> IO) -> Session
 session = Session Weak 
 
 -- | 'send' the remote monad `RPC` to the remote site, for execution.

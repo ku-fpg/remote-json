@@ -2,6 +2,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -20,6 +21,7 @@ module Control.Monad.Remote.JSON.Debug where
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.Remote.JSON
 import           Control.Monad.State
+import           Control.Natural
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -28,7 +30,7 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 
 
 -- | A tracing natural transformation morphism over the Session API.
-traceSessionAPI :: MonadIO m => String -> (SessionAPI a -> m a) -> (SessionAPI a -> m a)
+traceSessionAPI :: MonadIO m => String -> (SessionAPI ~> m) -> (SessionAPI ~> m)
 traceSessionAPI msg f (Sync v)  = do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f (Sync v)
@@ -41,7 +43,7 @@ traceSessionAPI msg f (Async v) = do
           return r
 
 -- | A tracing natural transformation morphism over the Transport API.
-traceTransportAPI :: MonadIO m => String -> (TransportAPI a -> m a) -> (TransportAPI a -> m a)
+traceTransportAPI :: MonadIO m => String -> (TransportAPI ~> m) -> (TransportAPI ~> m)
 traceTransportAPI msg f (Send v)  = do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f (Send v)
@@ -51,7 +53,7 @@ traceTransportAPI msg f (Send v)  = do
           return r
 
 -- | A tracing version of the 'Call a -> m a' natural transformation.
-traceCallAPI :: MonadIO m => String -> (Call a -> m a) -> (Call a -> m a)
+traceCallAPI :: MonadIO m => String -> (Call ~> m)  -> (Call ~> m)
 traceCallAPI msg f c@(Method nm args i) = do
           liftIO $ putStrLn $ msg ++ " method " ++ show c
           r <- f c
