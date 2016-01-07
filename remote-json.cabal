@@ -1,7 +1,8 @@
 name:                remote-json
 version:             0.2
--- synopsis:            
--- description:         
+synopsis:            Remote Monad implementation of the JSON RPC protocol
+description:         JSON RPC, where you can using monads and applicative functors
+                     to bundle JSON RPC requests and commands.
 license:             BSD3
 license-file:        LICENSE
 author:              Andy Gill
@@ -12,6 +13,10 @@ build-type:          Simple
 extra-source-files:  README.md
 tested-with:         GHC == 7.8.4, GHC == 7.10.3
 cabal-version:       >=1.10
+
+source-repository head
+  type:                git
+  location:            git://github.com/ku-fpg/remote-json
 
 library
   exposed-modules:     Control.Monad.Remote.JSON,
