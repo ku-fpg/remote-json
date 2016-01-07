@@ -49,6 +49,7 @@ Test-Suite test-spec
                  , bytestring             >= 0.10 && < 0.11
                  , exceptions             >= 0.8 && < 0.9
                  , mtl                    >= 2.1.2
+                 , natural-transformation >= 0.2  && < 0.4
                  , text                   >= 1.2 && < 1.3
                  , unordered-containers   >= 0.2.5 && < 0.2.6
                  , vector                 >= 0.11 && < 0.12
