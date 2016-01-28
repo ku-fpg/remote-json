@@ -4,8 +4,8 @@
 
 -- Example of a typed DSL
 module DSL (temperature, say, fib, send, DSLSession(..)) where
-        
-import Control.Monad        
+
+import Control.Monad
 import qualified Control.Monad.Remote.JSON as R
 import Control.Applicative
 import Data.Monoid
@@ -14,9 +14,9 @@ import Data.Maybe
 import Data.Text (Text)
 import qualified Data.Text.IO as IO
 import System.Random
-import Control.Transformation
+import Control.Natural
 
-newtype DSLSession = DSLSession R.Session 
+newtype DSLSession = DSLSession R.Session
 
 newtype DSL a = DSL (R.RPC a)
   deriving (Monad, Applicative, Functor)
@@ -28,8 +28,8 @@ notification :: Text -> [Value] -> DSL ()
 notification nm = DSL . R.notification nm . R.List
 
 temperature :: DSL Int
-temperature = method "temperature" [] 
-                       
+temperature = method "temperature" []
+
 say :: Text -> DSL ()
 say msg = notification "say" [toJSON msg]
 

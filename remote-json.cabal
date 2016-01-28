@@ -31,7 +31,7 @@ library
                      , exceptions             >= 0.8  && < 0.9
                      , fail
                      , mtl                    >= 2.1.2
-                     , natural-transformation >= 0.2  && < 0.4
+                     , natural-transformation >= 0.3  && < 0.4
                      , text                   >= 1.2  && < 1.3
                      , unordered-containers   >= 0.2.5 && < 0.2.6
                      , vector                 >= 0.11 && < 0.12
@@ -50,7 +50,7 @@ Test-Suite test-spec
                  , bytestring             >= 0.10 && < 0.11
                  , exceptions             >= 0.8 && < 0.9
                  , mtl                    >= 2.1.2
-                 , natural-transformation >= 0.2  && < 0.4
+                 , natural-transformation >= 0.3  && < 0.4
                  , remote-json
                  , text                   >= 1.2 && < 1.3
                  , unordered-containers   >= 0.2.5 && < 0.2.6
@@ -70,7 +70,7 @@ Test-Suite test-example
                   , bytestring             >= 0.10 && < 0.11
                   , exceptions             >= 0.8 && < 0.9
                   , mtl                    >= 2.1.2
-                  , natural-transformation >= 0.2 && < 0.4
+                  , natural-transformation >= 0.3 && < 0.4
                   , random                 >= 1.1 && < 1.2
                   , remote-json
                   , scientific             >= 0.3 && < 0.4
