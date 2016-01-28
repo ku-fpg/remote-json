@@ -36,6 +36,7 @@ module Control.Monad.Remote.JSON(
 
 import           Control.Applicative
 import           Control.Monad
+import qualified Control.Monad.Fail as Fail
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.State
 import           Control.Monad.Catch
@@ -70,10 +71,13 @@ instance Monad RPC where
   return     = pure
   (>>=)      = Bind
   (>>) m1 m2 = flip const <$> m1 <*> m2  -- so that the SAF can take advantage of this
-  fail       = Throw . userError 
+  fail       = Fail.fail
+
+instance Fail.MonadFail RPC where
+  fail = Throw . userError
 
 instance MonadThrow RPC where
-  throwM = Throw 
+  throwM = Throw
 
 -- We use the terms method and notification because this is the terminology
 -- used by JSON-RPC. They *are* remote monad procedures and commands.
@@ -90,13 +94,13 @@ result m = do
         Success r <- liftM fromJSON m
         return r
 
-data Session = Session 
+data Session = Session
         { remoteMonad       :: RemoteType
         , remoteSession     :: SessionAPI ~> IO
         }
-   
+
 session :: (SessionAPI ~> IO) -> Session
-session = Session Weak 
+session = Session Weak
 
 -- | 'send' the remote monad `RPC` to the remote site, for execution.
 send :: Session -> RPC a -> IO a
@@ -123,7 +127,7 @@ sendWeak s (Command nm args) =
 sendWeak s (Procedure nm args) = do
         r <- remoteSession s $ Sync $ toJSON $ Method nm args (toJSON i)
         case fromJSON r of
-                  Success (Response v tag) 
+                  Success (Response v tag)
                           | tag == toJSON i -> return v
                           | otherwise       -> fail "remote error: tag numbers do not match"
                   _ -> fail "remote error: failing response returned"
