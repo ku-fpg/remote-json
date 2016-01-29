@@ -4,17 +4,21 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Control.Monad.Remote.Fresh 
-(  method
+(  Command(..)
+ , method
  , notification
+ , Procedure (..)
  , weakSession
- , strongSession
  , send
+ , Session
+ , strongSession
 ) where
 
 import           Control.Remote.Monad
 import qualified Control.Remote.Monad.Packet.Weak as WP
 import qualified Control.Remote.Monad.Packet.Strong as SP
 import           Control.Monad.Remote.JSON.Types (Args(..), SessionAPI(..))
+
 
 import  qualified         Data.Text as Text
 import           Data.Aeson 
@@ -90,16 +94,4 @@ strongSession f = Session $ \ m -> (runMonad (runStrongRPC f) m)
 
 send :: Session -> RemoteMonad Command Procedure a -> IO a
 send (Session f) m = f m
-
-
-
-testme :: IO ()
-testme = do
-  let s = weakSession (clientSessionAPI "http://www.raboof.com/projects/jayrock/demo.ashx")
-  v <- send s $ do
-     method "echo" (List [String "Hello, World"]) 
-  print v   
-  v <- send s $ do
-     method "add" (List [Number 1, Number 2])
-  print v   
 

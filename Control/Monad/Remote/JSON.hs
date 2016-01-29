@@ -26,8 +26,8 @@ module Control.Monad.Remote.JSON(
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session,
-      	remoteSession,
-      	remoteMonad,
+        remoteSession,
+        remoteMonad,
         RemoteType(..),
         session,
         -- * Types

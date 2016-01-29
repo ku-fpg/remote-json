@@ -19,7 +19,7 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Debug where
         
 import           Control.Monad.Remote.JSON.Types
-import           Control.Monad.Remote.JSON
+import           Control.Monad.Remote.Fresh
 import           Control.Monad.State
 import           Control.Natural
 
@@ -52,6 +52,7 @@ traceTransportAPI msg f (Send v)  = do
             Just v -> liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
 
+{-
 -- | A tracing version of the 'Call a -> m a' natural transformation.
 traceCallAPI :: MonadIO m => String -> (Call ~> m)  -> (Call ~> m)
 traceCallAPI msg f c@(Method nm args i) = do
@@ -62,8 +63,8 @@ traceCallAPI msg f c@(Method nm args i) = do
 traceCallAPI msg f c@(Notification nm args) = do
           liftIO $ putStrLn $ msg ++ " notification " ++ show c
           f c
-
+-}
 -- | A tracing version of the Session, that states, as JSON objects, what is sent and received.
-traceSession :: String -> Session -> Session
-traceSession msg s = s { remoteSession = traceSessionAPI msg (remoteSession s) }
+--traceSession :: String -> Session -> Session
+--traceSession msg s = s { remoteSession = traceSessionAPI msg (remoteSession s) }
 

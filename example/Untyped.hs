@@ -3,7 +3,7 @@
 module Untyped where
 
 import Control.Monad        
-import Control.Monad.Remote.JSON
+import Control.Monad.Remote.Fresh
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
