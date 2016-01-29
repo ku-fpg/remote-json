@@ -19,6 +19,7 @@ import           Control.Monad.Remote.JSON.Types (Args(..), SessionAPI(..))
 import  qualified         Data.Text as Text
 import           Data.Aeson 
 import           Control.Monad.State
+import           Control.Monad.Remote.JSON.Client
 
 
 data Command :: * where
@@ -89,3 +90,13 @@ strongSession f = Session $ \ m -> (runMonad (runStrongRPC f) m)
 
 send :: Session -> RemoteMonad Command Procedure a -> IO a
 send (Session f) m = f m
+
+
+
+testme :: IO ()
+testme = do
+  let s = weakSession (clientSessionAPI "http://www.raboof.com/projects/jayrock/demo.ashx")
+  v <- send s $ do
+     method "add" (List [Number 1, Number 2])
+  print v   
+
