@@ -97,6 +97,9 @@ testme :: IO ()
 testme = do
   let s = weakSession (clientSessionAPI "http://www.raboof.com/projects/jayrock/demo.ashx")
   v <- send s $ do
+     method "echo" (List [String "Hello, World"]) 
+  print v   
+  v <- send s $ do
      method "add" (List [Number 1, Number 2])
   print v   
 
