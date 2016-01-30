@@ -23,7 +23,7 @@ module Control.Monad.Remote.JSON.Router
         , parseError
         , Call(..)
         , Args(..)
-        , TransportAPI(..)
+        , ReceiveAPI(..)
         ) where
         
 import           Control.Applicative
@@ -41,16 +41,16 @@ import qualified Data.Text.Lazy as LT
 import           Data.Text.Lazy.Encoding(decodeUtf8)
 import           Data.Typeable
 import qualified Data.Vector as V
-
+import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
 -- | "The Server MAY process a batch rpc call as a set of concurrent tasks,
 --    processing them in any order and with any width of parallelism."
 --   We control this using the first argument.         
 router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
-       -> (Call ~> m) -> (TransportAPI ~> m)
-router s f (Send v@(Object {})) = simpleRouter f v
-router s f (Send v@(Array a)) 
+       -> (WeakPacket Command Procedure ~> m) -> (ReceiveAPI ~> m)
+router s f (Receive v@(Object {})) = simpleRouter f v
+router s f (Receive v@(Array a)) 
   | V.null a = return $ Just $ invalidRequest
   | otherwise = do
         rs <- s (map (simpleRouter f) $ V.toList a)
@@ -62,21 +62,17 @@ router s f (Send v@(Array a))
           vs -> return (Just (toJSON vs))
 rounter s f _ = return $ Just $ invalidRequest
         
+-- The simple router handle a single call.
 simpleRouter :: forall m . MonadCatch m 
-       => (forall a . Call a -> m a) 
+       => (WeakPacket Command Procedure ~> m) 
        -> Value -> m (Maybe Value)
-simpleRouter f v = case parser of
+simpleRouter f v = case call <$> fromJSON v of
     Success m -> m
     Error e1 ->  return $ Just $ invalidRequest
   where
-        -- This does not support all the error messages (yet)
-        parser :: Result (m (Maybe Value))
-        parser = meth <$> fromJSON v
-             <|> note <$> fromJSON v
-
-        meth :: Call Value -> m (Maybe Value)
-        meth (Method nm args tag) = (do
-                v <- f (Method nm args tag)
+        call :: Call -> m (Maybe Value)
+        call (MethodCall (Method nm args) tag) = (do
+                v <- f (Procedure (Method nm args))
                 return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
                        , "result" .= v
@@ -92,11 +88,10 @@ simpleRouter f v = case parser of
                                return $ Just $ toJSON 
                                       $ errorResponse (-32603) "Internal error" tag                                
                           ]
-
-
-        note :: Call () -> m (Maybe Value)
-        note c = (f c >> return Nothing) `catchAll` \ _ -> return Nothing
+        call (NotificationCall n) =
+            (f (Command n) >> return Nothing) `catchAll` \ _ -> return Nothing
   
+
 errorResponse :: Int -> Text -> Value -> Value
 errorResponse code msg theId = toJSON $
         ErrorResponse (ErrorMessage code msg) theId

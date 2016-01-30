@@ -17,7 +17,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON(
+module Control.Monad.Remote.JSON {- (
         -- * JSON-RPC DSL
         RPC,  -- abstract
         method,
@@ -32,7 +32,7 @@ module Control.Monad.Remote.JSON(
         session,
         -- * Types
         Args(..)
-  ) where
+  ) -} where
 
 import           Control.Applicative
 import           Control.Monad
@@ -49,8 +49,77 @@ import qualified Data.Text.Lazy as LT
 import           Data.Text.Lazy.Encoding(decodeUtf8)
 import           Data.Typeable
 import qualified Data.Vector as V
+import           Control.Remote.Monad
+import qualified Control.Remote.Monad.Packet.Weak as WP
+import qualified Control.Remote.Monad.Packet.Strong as SP
+
+{-
+procedureToJSON :: Procedure a -> Value -> Value
+procedureToJSON (Method nm args) tag  = object $      
+ [ "jsonrpc" .= ("2.0" :: Text)      
+ , "method" .= nm                    
+ , "id" .= tag                       
+ ] ++ case args of                   
+        None -> []                   
+        _    -> [ "params" .= args ] 
 
 
+commandToJSON ::Command -> Value
+commandToJSON (Notification nm args) = object $    
+ [ "jsonrpc" .= ("2.0" :: Text)      
+ , "method" .= nm                    
+ ] ++ case args of                   
+        None -> []                   
+        _    -> [ "params" .= args ] 
+-}
+                                     
+parseProcedureResult :: Procedure a -> Value -> a
+parseProcedureResult (Method {}) v = v 
+
+method :: Text -> Args -> RPC Value
+method nm args = RPC $ procedure $ Method nm args
+
+notification :: Text -> Args -> RPC ()
+notification nm args = RPC $ command $ Notification nm args
+
+
+runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Command Procedure a -> IO a
+runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))
+runWeakRPC f (WP.Procedure m) = do
+          v<- f (Sync (toJSON $ mkMethodCall m $ Number 1))
+          return (parseProcedureResult m v)
+
+runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Command Procedure a ->  IO a
+runStrongRPC f packet =evalStateT (go f packet) []
+      where
+            go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Command Procedure a -> StateT [Command] IO a
+            go f (SP.Command n cs) = do 
+                                      modify $ \st -> st ++ [n]
+                                      go f cs
+            go _ (SP.Done) =  liftIO $ return ()
+            go f (SP.Procedure m) = do 
+                            st <- get
+                            put []
+                            let toSend = (map (toJSON . NotificationCall) st) ++ [toJSON $ mkMethodCall m $ Number 1]
+                            v <- liftIO $ f (Sync $ toJSON toSend)
+                            return (parseProcedureResult m v)
+
+
+newtype Session = Session (forall a . RemoteMonad Command Procedure a -> IO a) 
+
+-- TODO: Add an IO here, to allow setup
+weakSession :: (forall a . SendAPI a -> IO a) -> Session
+weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
+
+strongSession :: (forall a . SendAPI a -> IO a) -> Session
+strongSession f = Session $ \ m -> (runMonad (runStrongRPC f) m)
+
+send :: Session -> RPC a -> IO a
+send (Session f) (RPC m) = f m
+
+
+
+{-
 data RPC :: * -> * where
     Pure         :: a ->                     RPC a
     Bind         :: RPC a -> (a -> RPC b) -> RPC b
@@ -96,10 +165,10 @@ result m = do
 
 data Session = Session
         { remoteMonad       :: RemoteType
-        , remoteSession     :: SessionAPI ~> IO
+        , remoteSession     :: SendAPI ~> IO
         }
 
-session :: (SessionAPI ~> IO) -> Session
+session :: (SendAPI ~> IO) -> Session
 session = Session Weak
 
 -- | 'send' the remote monad `RPC` to the remote site, for execution.
@@ -160,3 +229,5 @@ sendStrong s (Procedure nm args) = do
                           | otherwise       -> fail "remote error: tag numbers do not match"
                   _ -> fail "remote error: failing response returned"
   where i = 1 :: Int
+
+-}

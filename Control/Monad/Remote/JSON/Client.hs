@@ -3,12 +3,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Control.Monad.Remote.JSON.Client
-        ( clientSessionAPI
+        ( clientSendAPI
         ) where
 
 import Control.Lens ((^.))
 import Control.Monad (void)
-import Control.Monad.Remote.JSON.Types (SessionAPI(..))
+import Control.Monad.Remote.JSON.Types (SendAPI(..))
 import Data.Aeson
 import Network.Wreq
 
@@ -16,9 +16,9 @@ import Network.Wreq
 -- http://www.raboof.com/projects/jayrock/demo.ashx
 -- https://s1.ripple.com:51234/ 
 
-clientSessionAPI :: String -> (forall a . SessionAPI a -> IO a)
-clientSessionAPI url (Sync v) = do
+clientSendAPI :: String -> (forall a . SendAPI a -> IO a)
+clientSendAPI url (Sync v) = do
           r <- asJSON =<< post url (toJSON v)
           return $ r ^. responseBody
-clientSessionAPI url (Async v) = do
+clientSendAPI url (Async v) = do
           void $ post url (toJSON v)

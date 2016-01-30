@@ -30,23 +30,23 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 
 
 -- | A tracing natural transformation morphism over the Session API.
-traceSessionAPI :: MonadIO m => String -> (SessionAPI ~> m) -> (SessionAPI ~> m)
-traceSessionAPI msg f (Sync v)  = do
+traceSendAPI :: MonadIO m => String -> (SendAPI ~> m) -> (SendAPI ~> m)
+traceSendAPI msg f (Sync v)  = do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f (Sync v)
           liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
-traceSessionAPI msg f (Async v) = do
+traceSendAPI msg f (Async v) = do
           liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f (Async v)
           liftIO $ putStrLn $ msg ++ "// No response"
           return r
 
 -- | A tracing natural transformation morphism over the Transport API.
-traceTransportAPI :: MonadIO m => String -> (TransportAPI ~> m) -> (TransportAPI ~> m)
-traceTransportAPI msg f (Send v)  = do
+traceReceiveAPI :: MonadIO m => String -> (ReceiveAPI ~> m) -> (ReceiveAPI ~> m)
+traceReceiveAPI msg f (Receive v)  = do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
-          r <- f (Send v)
+          r <- f (Receive v)
           case r of
             Nothing -> liftIO $ putStrLn $ msg ++ "// No response"
             Just v -> liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
@@ -66,5 +66,5 @@ traceCallAPI msg f c@(Notification nm args) = do
 -}
 -- | A tracing version of the Session, that states, as JSON objects, what is sent and received.
 --traceSession :: String -> Session -> Session
---traceSession msg s = s { remoteSession = traceSessionAPI msg (remoteSession s) }
+--traceSession msg s = s { remoteSession = traceSendAPI msg (remoteSession s) }
 

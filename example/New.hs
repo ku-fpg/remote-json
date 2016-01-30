@@ -5,7 +5,7 @@ module New
 
 import Control.Monad.Remote.Fresh
 import Control.Monad.Remote.JSON.Debug
-import           Control.Monad.Remote.JSON.Types (Args(..), SessionAPI(..))
+import           Control.Monad.Remote.JSON.Types (Args(..), SendAPI(..))
 
 
 import  qualified         Data.Text as Text
@@ -16,7 +16,7 @@ import           Control.Monad.Remote.JSON.Client
 
 testme :: IO ()
 testme = do
-  let s = weakSession (traceSessionAPI "Justin" (clientSessionAPI "http://www.raboof.com/projects/jayrock/demo.ashx"))
+  let s = weakSession (traceSendAPI "Justin" (clientSendAPI "http://www.raboof.com/projects/jayrock/demo.ashx"))
   v <- send s $ do
           method "echo" (List [String "Weak Method"])
   v <- send s $ do
@@ -26,7 +26,7 @@ testme = do
      method "add" (List [Number 1, Number 2])
   print v   
   
-  let ss = strongSession (clientSessionAPI "http://www.raboof.com/projects/jayrock/demo.ashx")
+  let ss = strongSession (clientSendAPI "http://www.raboof.com/projects/jayrock/demo.ashx")
   v <- send ss $ do
       v1 <- method "echo" (List [String "Strong Method"])
       return v1

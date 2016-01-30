@@ -29,9 +29,9 @@ sessions = concat
 sessions' :: [Session]
 sessions' = 
   [ session $ transport $ router sequence $ remote 
-  , session $ traceSessionAPI "session"
+  , session $ traceSendAPI "session"
             $ transport                     $ router sequence $ remote
-  , session $ transport $ traceTransportAPI "transport"
+  , session $ transport $ traceReceiveAPI "transport"
                         $ router sequence $ remote
   , session $ transport $ router sequence $ traceCallAPI "call"
                                           $ remote ]
