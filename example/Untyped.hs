@@ -3,7 +3,8 @@
 module Untyped where
 
 import Control.Monad        
-import Control.Monad.Remote.Fresh
+import Control.Monad.Remote.JSON
+import Control.Monad.Remote.JSON.Types -- TODO RM
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
@@ -19,6 +20,6 @@ untyped s = do
                 notification "say" (List [String "World!"])
                 t <- method "temperature" None
                 return t
-        print t                      
+        print t                    
         r <- send s $ method "fib" (List [Number 10])
         print r

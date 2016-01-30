@@ -19,32 +19,40 @@ import           Control.Monad.Remote.JSON.Types -- for now
 import           Data.Attoparsec.ByteString
 import           System.Exit
 import           Test (readTests, Test(..))
+import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
-f :: Call a -> IO a
-f (Method "subtract" (List [Number a,Number b]) _) = return $ Number (a - b)
-f (Method "subtract" (Named xs) _)
+f :: WeakPacket Command Procedure a -> IO a
+f (Command c)   = runNotification c
+f (Procedure p) = runMethod p
+  
+runMethod :: Procedure a -> IO a
+runMethod (Method "subtract" (List [Number a,Number b])) = return $ Number (a - b)
+runMethod (Method "subtract" (Named xs))
         | Just (Number a) <- lookup "minuend" xs
         , Just (Number b) <- lookup "subtrahend" xs
         = return $ Number (a - b)
-f (Method "sum" args _) = case args of
+runMethod (Method "sum" args) = case args of
       List xs -> return $ Number $ sum $ [ x | Number x <- xs ]
       _ -> invalidParams
-f (Method "get_data" None _) = return $ toJSON [String "hello", Number 5]
-f (Notification "update" _) = return $ ()
-f (Notification "notify_hello" _) = return $ ()
-f (Notification "notify_sum" _)   = return $ ()
-f (Method "error" (List [String msg]) _) = error $ show msg
-f (Method "fail" (List [String msg]) _) = fail $ show msg
-f _ = methodNotFound
+runMethod (Method "get_data" None) = return $ toJSON [String "hello", Number 5]
+runMethod (Method "error" (List [String msg])) = error $ show msg
+runMethod (Method "fail" (List [String msg])) = fail $ show msg
+runMethod _ = methodNotFound
+
+runNotification :: Command -> IO ()
+runNotification (Notification "update" _) = return $ ()
+runNotification (Notification "notify_hello" _) = return $ ()
+runNotification (Notification "notify_sum" _)   = return $ ()
+runNotification _ = methodNotFound
 
 -- Avoid skolem
-newtype C = C (forall a . Call a -> IO a)
+--newtype C = C (forall a . Call -> IO a)
 
 main = do
   tests <- readTests "tests/spec/Spec.txt"
   let testWith i testName (Right v_req) v_expect = do
              putStrLn $ ("--> " ++) $ LT.unpack $ decodeUtf8 $ encode v_req
-             r <- router sequence f (Send v_req)
+             r <- router sequence f (Receive v_req)
              showResult i testName r v_expect
       testWith i testName (Left bad) v_expect = do
              putStr "--> " 
