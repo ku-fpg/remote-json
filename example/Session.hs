@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
 
 module Session (sessions) where
@@ -19,18 +21,20 @@ import Data.Text (Text,pack)
 import qualified Data.Text.IO as IO
 import System.Random
 import Data.Scientific as Scientific
+import Control.Natural
 
 sessions :: [Session]
 sessions = 
-  [ weakSession $ transport $ router sequence $ remote ]
-{-
-  , session $ traceSendAPI "session"
-            $ transport                     $ router sequence $ remote
-  , session $ transport $ traceReceiveAPI "transport"
-                        $ router sequence $ remote
-  , session $ transport $ router sequence $ traceCallAPI "call"
-                                          $ remote ]
--}
+  [ s | f :: (SendAPI ~> IO) -> Session  <- [ weakSession ]
+      , s <- [ f $ transport $ router sequence $ remote
+             , f $ traceSendAPI "session"
+                 $ transport $ router sequence $ remote
+             , f $ transport $ traceReceiveAPI "transport"
+                             $ router sequence $ remote
+             , f $ transport $ router sequence $ traceWeakPacketAPI "call"
+                                               $ remote 
+             ]
+  ]
 
 remote :: WeakPacket Command Procedure a -> IO a
 remote (Command c)   = remoteCommand c

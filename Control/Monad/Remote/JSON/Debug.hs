@@ -22,6 +22,7 @@ import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.Remote.Fresh
 import           Control.Monad.State
 import           Control.Natural
+import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -52,18 +53,17 @@ traceReceiveAPI msg f (Receive v)  = do
             Just v -> liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
 
-{-
 -- | A tracing version of the 'Call a -> m a' natural transformation.
-traceCallAPI :: MonadIO m => String -> (Call ~> m)  -> (Call ~> m)
-traceCallAPI msg f c@(Method nm args i) = do
+traceWeakPacketAPI :: MonadIO m => String -> (WeakPacket Command Procedure ~> m) -> (WeakPacket Command Procedure ~> m)
+traceWeakPacketAPI msg f p@(Procedure c@(Method nm args)) = do
           liftIO $ putStrLn $ msg ++ " method " ++ show c
-          r <- f c
+          r <- f p
           liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))
           return r
-traceCallAPI msg f c@(Notification nm args) = do
-          liftIO $ putStrLn $ msg ++ " notification " ++ show c
-          f c
--}
+traceWeakPacketAPI msg f p@(Command n@(Notification nm args)) = do
+          liftIO $ putStrLn $ msg ++ " notification " ++ show n
+          f p
+
 -- | A tracing version of the Session, that states, as JSON objects, what is sent and received.
 --traceSession :: String -> Session -> Session
 --traceSession msg s = s { remoteSession = traceSendAPI msg (remoteSession s) }

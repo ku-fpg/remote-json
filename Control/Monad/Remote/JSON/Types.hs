@@ -9,6 +9,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 {-|
 Module:      Control.Monad.Remote.JSON where
@@ -38,16 +39,20 @@ import           Control.Remote.Monad(RemoteMonad)
 
 -- The basic command type
 data Command :: * where
-  Notification :: Text -> Args -> Command
+    Notification :: Text -> Args -> Command
+
+deriving instance Show Command
 
 -- The basic procedure type
 data Procedure :: * -> * where
-  Method     :: Text -> Args -> Procedure Value
+    Method     :: Text -> Args -> Procedure Value
+
+deriving instance Show (Procedure a)
 
 -- This is the non-GADT, JSON-serializable version of Command and Procedure.
 data Call :: * where
-  NotificationCall :: Command                  -> Call
-  MethodCall       :: Procedure Value -> Value -> Call
+    NotificationCall :: Command                  -> Call
+    MethodCall       :: Procedure Value -> Value -> Call
 
 -- The GADT version of MethodCall
 mkMethodCall :: Procedure a -> Value -> Call
@@ -91,13 +96,17 @@ newtype RPC a = RPC (RemoteMonad Command Procedure a)
 -- The client-side send function API.
 -- You provide a way of dispatching this, to implement a client.
 data SendAPI :: * -> * where
-   Sync  :: Value -> SendAPI Value
-   Async :: Value -> SendAPI ()
+    Sync  :: Value -> SendAPI Value
+    Async :: Value -> SendAPI ()
+
+deriving instance Show (SendAPI a)
 
 -- The server-side recieived API.
 -- You provide a way of dispatching this, to implement a server.
 data ReceiveAPI :: * -> * where
-   Receive :: Value -> ReceiveAPI (Maybe Value)
+    Receive :: Value -> ReceiveAPI (Maybe Value)
+
+deriving instance Show (ReceiveAPI a)
      
 --(##) :: forall (c :: (* -> *) -> Constraint) f g m . (c m) => (f ~> m) -> (g ~> m)
 --(##) = undefined
@@ -155,9 +164,9 @@ instance FromJSON (Call ()) where
 -}
 
 data Args where
-  List :: [Value]         -> Args
-  Named :: [(Text,Value)] -> Args
-  None  ::                   Args
+    List :: [Value]         -> Args
+    Named :: [(Text,Value)] -> Args
+    None  ::                   Args
 
 instance Show Args where
    show (List args) =
@@ -193,6 +202,7 @@ instance FromJSON Tag where
   parseJSON _ = fail "not an Object when parsing a Tag"
  
 data ErrorMessage = ErrorMessage Int Text
+  deriving Show
 
 instance ToJSON ErrorMessage where
   toJSON (ErrorMessage code msg) = object 
@@ -209,6 +219,7 @@ instance FromJSON ErrorMessage where
 data Response 
         = Response Value             Value
         | ErrorResponse ErrorMessage Value
+  deriving Show
 
 instance ToJSON Response where
   toJSON (Response r theId) = object
