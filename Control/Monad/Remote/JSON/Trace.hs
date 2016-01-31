@@ -16,7 +16,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON.Debug where
+module Control.Monad.Remote.JSON.Trace where
         
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.Remote.JSON (Session(..))

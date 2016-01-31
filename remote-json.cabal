@@ -19,12 +19,12 @@ source-repository head
   location:            git://github.com/ku-fpg/remote-json
 
 library
-  exposed-modules:     Control.Monad.Remote.Fresh,
-                       Control.Monad.Remote.JSON, 
-                       Control.Monad.Remote.JSON.Client,
-                       Control.Monad.Remote.JSON.Debug,
-                       Control.Monad.Remote.JSON.Router,
-                       Control.Monad.Remote.JSON.Types
+  exposed-modules:     Control.Monad.Remote.Fresh
+                     , Control.Monad.Remote.JSON
+                     , Control.Monad.Remote.JSON.Client
+                     , Control.Monad.Remote.JSON.Router
+                     , Control.Monad.Remote.JSON.Trace
+                     , Control.Monad.Remote.JSON.Types
 
   -- other-modules:
   build-depends:       aeson                  >= 0.8  && < 0.10

@@ -10,7 +10,7 @@ import Control.Applicative
 import Control.Monad        
 import Control.Monad.Remote.JSON
 import Control.Monad.Remote.JSON.Types -- TODO RM
-import Control.Monad.Remote.JSON.Debug
+import Control.Monad.Remote.JSON.Trace
 import Control.Monad.Remote.JSON.Router
 import Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 import Data.Monoid
