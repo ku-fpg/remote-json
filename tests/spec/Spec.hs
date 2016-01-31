@@ -21,11 +21,11 @@ import           System.Exit
 import           Test (readTests, Test(..))
 import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
-f :: WeakPacket Command Procedure a -> IO a
+f :: WeakPacket Notification Method a -> IO a
 f (Command c)   = runNotification c
 f (Procedure p) = runMethod p
   
-runMethod :: Procedure a -> IO a
+runMethod :: Method a -> IO a
 runMethod (Method "subtract" (List [Number a,Number b])) = return $ Number (a - b)
 runMethod (Method "subtract" (Named xs))
         | Just (Number a) <- lookup "minuend" xs
@@ -39,7 +39,7 @@ runMethod (Method "error" (List [String msg])) = error $ show msg
 runMethod (Method "fail" (List [String msg])) = fail $ show msg
 runMethod _ = methodNotFound
 
-runNotification :: Command -> IO ()
+runNotification :: Notification -> IO ()
 runNotification (Notification "update" _) = return $ ()
 runNotification (Notification "notify_hello" _) = return $ ()
 runNotification (Notification "notify_sum" _)   = return $ ()

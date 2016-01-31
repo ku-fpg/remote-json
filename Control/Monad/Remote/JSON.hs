@@ -75,11 +75,11 @@ commandToJSON (Notification nm args) = object $
                                      
 -- parse the result of sending/executing a procedure, and return the result and the id
 -- TODO: think about how to handle ErrorResponse.
-parseProcedureResult :: Monad m => Procedure a -> Value -> m (a,Value)
-parseProcedureResult (Method {}) repl = do
+parseMethodResult :: Monad m => Method a -> Value -> m (a,Value)
+parseMethodResult (Method {}) repl = do
     case fromJSON repl of
       Success (Response v tag) -> return (v,tag)
-      _ -> error $ "bad packet in parseProcedureResult:" ++  show repl
+      _ -> error $ "bad packet in parseMethodResult:" ++  show repl
 
 method :: Text -> Args -> RPC Value
 method nm args = RPC $ procedure $ Method nm args
@@ -93,17 +93,17 @@ result m = do
         Success r <- liftM fromJSON m
         return r
 
-runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Command Procedure a -> IO a
+runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Notification Method a -> IO a
 runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))
 runWeakRPC f (WP.Procedure m) = do
           v <- f (Sync (toJSON $ mkMethodCall m $ Number 1))
-          (a,_) <- parseProcedureResult m v
+          (a,_) <- parseMethodResult m v
           return a
 
-runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Command Procedure a ->  IO a
+runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a ->  IO a
 runStrongRPC f packet = evalStateT (go f packet) []
       where
-            go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Command Procedure a -> StateT [Command] IO a
+            go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a -> StateT [Notification] IO a
             go f (SP.Command n cs) = do 
                                       modify $ \st -> st ++ [n]
                                       go f cs
@@ -116,7 +116,7 @@ runStrongRPC f packet = evalStateT (go f packet) []
                             -- Expecting an array, always
                             case fromJSON v of
                               Success [v0 :: Value] -> do
-                                  (a,_) <- parseProcedureResult m v0
+                                  (a,_) <- parseMethodResult m v0
                                   return a
                               _ -> fail "non singleton result from strong packet result"
 

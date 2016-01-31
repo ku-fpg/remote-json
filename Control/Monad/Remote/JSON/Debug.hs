@@ -55,7 +55,7 @@ traceReceiveAPI msg f (Receive v)  = do
           return r
 
 -- | A tracing version of the 'Packet a -> m a' natural transformation morphism.
-traceWeakPacketAPI :: MonadIO m => String -> (WeakPacket Command Procedure ~> m) -> (WeakPacket Command Procedure ~> m)
+traceWeakPacketAPI :: MonadIO m => String -> (WeakPacket Notification Method ~> m) -> (WeakPacket Notification Method ~> m)
 traceWeakPacketAPI msg f p@(Procedure c@(Method nm args)) = do
           liftIO $ putStrLn $ msg ++ " method " ++ show c
           r <- f p

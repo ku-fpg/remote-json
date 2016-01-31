@@ -35,11 +35,11 @@ sessions =
              ]
   ]
 
-remote :: WeakPacket Command Procedure a -> IO a
+remote :: WeakPacket Notification Method a -> IO a
 remote (Command c)   = remoteCommand c
 remote (Procedure p) = remoteProcedure p
 
-remoteCommand :: Command -> IO ()
+remoteCommand :: Notification -> IO ()
 remoteCommand (Notification "say" args) = case args of
     List [String txt] -> do
         IO.putStrLn $ "remote: " <> txt
@@ -47,7 +47,7 @@ remoteCommand (Notification "say" args) = case args of
     _ ->  invalidParams
 remoteCommand _ = methodNotFound
 
-remoteProcedure :: Procedure a -> IO a
+remoteProcedure :: Method a -> IO a
 remoteProcedure (Method "temperature" _) = do
         t <- randomRIO (50, 100 :: Int)
         IO.putStrLn $ "temperature: " <> pack (show t)

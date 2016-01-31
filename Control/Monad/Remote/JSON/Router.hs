@@ -19,8 +19,9 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Router 
         ( -- * The server RPC router
           router
-          -- * The datatype that represents what we receive
+          -- * The datatype that represents what we receive and what we dispatch
         , ReceiveAPI(..)
+        , WeakPacket(..)
           -- * Utilty methods
         , transport
         , methodNotFound
@@ -50,7 +51,7 @@ import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 --   We control this using the first argument.         
 router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
-       -> (WeakPacket Command Procedure ~> m) -> (ReceiveAPI ~> m)
+       -> (WeakPacket Notification Method ~> m) -> (ReceiveAPI ~> m)
 router s f (Receive v@(Object {})) = simpleRouter f v
 router s f (Receive v@(Array a)) 
   | V.null a = return $ Just $ invalidRequest
@@ -66,7 +67,7 @@ rounter s f _ = return $ Just $ invalidRequest
         
 -- The simple router handle a single call.
 simpleRouter :: forall m . MonadCatch m 
-       => (WeakPacket Command Procedure ~> m) 
+       => (WeakPacket  Notification Method ~> m) 
        -> Value -> m (Maybe Value)
 simpleRouter f v = case call <$> fromJSON v of
     Success m -> m

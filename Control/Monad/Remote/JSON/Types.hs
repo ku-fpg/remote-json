@@ -23,11 +23,11 @@ Portability: GHC
 module Control.Monad.Remote.JSON.Types (
     -- * RPC Monad
     RPC(..)
-    -- * 'Notification' and 'Method', with 'Args'
-  , Command(..)
-  , Procedure(..)
+    -- * 'Notification', 'Method' and 'Args'
+  , Notification(..)
+  , Method(..)
   , Args(..)
-    -- * Non-GADT combination of Command and Procedure
+    -- * Non-GADT combination of 'Notification' and 'Method'
   , Call(..)
   , mkMethodCall
     -- * Sending and Receiving APIs
@@ -56,24 +56,24 @@ import           Control.Remote.Monad(RemoteMonad)
 
 
 -- The basic command type
-data Command :: * where
-    Notification :: Text -> Args -> Command
+data Notification :: * where
+    Notification :: Text -> Args -> Notification
 
-deriving instance Show Command
+deriving instance Show Notification
 
 -- The basic procedure type
-data Procedure :: * -> * where
-    Method     :: Text -> Args -> Procedure Value
+data Method :: * -> * where
+    Method     :: Text -> Args -> Method Value
 
-deriving instance Show (Procedure a)
+deriving instance Show (Method a)
 
--- | This is the non-GADT, JSON-serializable version of Command and Procedure.
+-- | This is the non-GADT, JSON-serializable version of Notification and Method.
 data Call :: * where
-    NotificationCall :: Command                  -> Call
-    MethodCall       :: Procedure Value -> Value -> Call
+    NotificationCall :: Notification          -> Call
+    MethodCall       :: Method Value -> Value -> Call
 
 -- | The GADT version of MethodCall
-mkMethodCall :: Procedure a -> Value -> Call
+mkMethodCall :: Method a -> Value -> Call
 mkMethodCall m@(Method {}) v = MethodCall m v
 
 instance Show Call where
@@ -108,7 +108,7 @@ instance FromJSON Call where
   parseJSON _ = fail "not an Object when parsing a Call Value"  
 
 -- The JSON RPC Monad
-newtype RPC a = RPC (RemoteMonad Command Procedure a)
+newtype RPC a = RPC (RemoteMonad Notification Method a)
   deriving (Functor, Applicative, Monad)
   
 -- The client-side send function API.
@@ -133,7 +133,7 @@ deriving instance Show (ReceiveAPI a)
 data RemoteType = Strong | Weak
    deriving (Eq,Ord,Show)
 
-newtype Session = Session (forall a . RemoteMonad Command Procedure a -> IO a) 
+newtype Session = Session (forall a . RemoteMonad Notification Method a -> IO a) 
 
 {-
 data Call :: * -> * where
