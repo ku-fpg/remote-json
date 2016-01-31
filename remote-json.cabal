@@ -20,7 +20,6 @@ source-repository head
 
 library
   exposed-modules:     Control.Monad.Remote.JSON
-                     , Control.Monad.Remote.JSON.Client
                      , Control.Monad.Remote.JSON.Router
                      , Control.Monad.Remote.JSON.Trace
                      , Control.Monad.Remote.JSON.Types
