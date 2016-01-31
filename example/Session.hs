@@ -12,7 +12,6 @@ import Control.Monad.Remote.JSON
 import Control.Monad.Remote.JSON.Types -- TODO RM
 import Control.Monad.Remote.JSON.Debug
 import Control.Monad.Remote.JSON.Router
-import Control.Monad.Remote.JSON.Types (transport)
 import Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 import Data.Monoid
 import Data.Aeson

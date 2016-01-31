@@ -16,6 +16,8 @@ import Network.Wreq
 -- http://www.raboof.com/projects/jayrock/demo.ashx
 -- https://s1.ripple.com:51234/ 
 
+-- | A way of building client 'SendAPI' support, using wreq.
+
 clientSendAPI :: String -> (forall a . SendAPI a -> IO a)
 clientSendAPI url (Sync v) = do
           r <- asJSON =<< post url (toJSON v)

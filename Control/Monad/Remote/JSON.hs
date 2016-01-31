@@ -17,22 +17,22 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON {- (
+module Control.Monad.Remote.JSON (
         -- * JSON-RPC DSL
         RPC,  -- abstract
         method,
         notification,
-        result,
         -- * Invoke the JSON RPC Remote Monad
         send,
         Session,
-        remoteSession,
-        remoteMonad,
-        RemoteType(..),
-        session,
+        weakSession,
+        strongSession,
+        SendAPI(..),
+        -- * Utility to help parse the result 'Value' into a native Haskell value.
+        result,
         -- * Types
         Args(..)
-  ) -} where
+  ) where
 
 import           Control.Applicative
 import           Control.Monad
@@ -79,7 +79,7 @@ parseProcedureResult :: Monad m => Procedure a -> Value -> m (a,Value)
 parseProcedureResult (Method {}) repl = do
     case fromJSON repl of
       Success (Response v tag) -> return (v,tag)
-      _ -> error "bad packet in parseProcedureResult"
+      _ -> error $ "bad packet in parseProcedureResult:" ++  show repl
 
 method :: Text -> Args -> RPC Value
 method nm args = RPC $ procedure $ Method nm args
@@ -101,7 +101,7 @@ runWeakRPC f (WP.Procedure m) = do
           return a
 
 runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Command Procedure a ->  IO a
-runStrongRPC f packet =evalStateT (go f packet) []
+runStrongRPC f packet = evalStateT (go f packet) []
       where
             go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Command Procedure a -> StateT [Command] IO a
             go f (SP.Command n cs) = do 
@@ -113,11 +113,12 @@ runStrongRPC f packet =evalStateT (go f packet) []
                             put []
                             let toSend = (map (toJSON . NotificationCall) st) ++ [toJSON $ mkMethodCall m $ Number 1]
                             v <- liftIO $ f (Sync $ toJSON toSend)
-                            (a,_) <- parseProcedureResult m v
-                            return a
-
-
-newtype Session = Session (forall a . RemoteMonad Command Procedure a -> IO a) 
+                            -- Expecting an array, always
+                            case fromJSON v of
+                              Success [v0 :: Value] -> do
+                                  (a,_) <- parseProcedureResult m v0
+                                  return a
+                              _ -> fail "non singleton result from strong packet result"
 
 -- TODO: Add an IO here, to allow setup
 weakSession :: (forall a . SendAPI a -> IO a) -> Session

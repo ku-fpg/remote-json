@@ -17,13 +17,15 @@ Portability: GHC
 -}
 
 module Control.Monad.Remote.JSON.Router 
-        ( router
+        ( -- * The server RPC router
+          router
+          -- * The datatype that represents what we receive
+        , ReceiveAPI(..)
+          -- * Utilty methods
+        , transport
         , methodNotFound
         , invalidParams
-        , parseError
-        , Call(..)
-        , Args(..)
-        , ReceiveAPI(..)
+        , parseError        
         ) where
         
 import           Control.Applicative
@@ -90,7 +92,20 @@ simpleRouter f v = case call <$> fromJSON v of
                           ]
         call (NotificationCall n) =
             (f (Command n) >> return Nothing) `catchAll` \ _ -> return Nothing
-  
+
+-- | 'transport' connects the ability to recieve a message with the ability
+-- to send a message. Typically this is done using TCP/IP and HTTP,
+-- but we can simulate the connection here.
+
+transport :: (Monad f) => (ReceiveAPI ~> f) -> (SendAPI ~> f)
+transport f (Sync v)  = do
+  r <- f (Receive v)
+  case r of
+    Nothing -> fail "no result returned in transport"
+    Just v -> return v
+transport f (Async v) = do
+  f (Receive v)
+  return ()
 
 errorResponse :: Int -> Text -> Value -> Value
 errorResponse code msg theId = toJSON $

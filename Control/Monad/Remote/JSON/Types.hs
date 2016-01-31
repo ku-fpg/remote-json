@@ -20,7 +20,25 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON.Types where
+module Control.Monad.Remote.JSON.Types (
+    -- * RPC Monad
+    RPC(..)
+    -- * 'Notification' and 'Method', with 'Args'
+  , Command(..)
+  , Procedure(..)
+  , Args(..)
+    -- * Non-GADT combination of Command and Procedure
+  , Call(..)
+  , mkMethodCall
+    -- * Sending and Receiving APIs
+  , SendAPI(..)
+  , ReceiveAPI(..)
+    -- * Session abstraction
+  , Session(..)
+    -- * Internal datatypes
+  , ErrorMessage(..)
+  , Response(..)
+  ) where
 
 import           Control.Applicative
 import           Control.Natural
@@ -49,12 +67,12 @@ data Procedure :: * -> * where
 
 deriving instance Show (Procedure a)
 
--- This is the non-GADT, JSON-serializable version of Command and Procedure.
+-- | This is the non-GADT, JSON-serializable version of Command and Procedure.
 data Call :: * where
     NotificationCall :: Command                  -> Call
     MethodCall       :: Procedure Value -> Value -> Call
 
--- The GADT version of MethodCall
+-- | The GADT version of MethodCall
 mkMethodCall :: Procedure a -> Value -> Call
 mkMethodCall m@(Method {}) v = MethodCall m v
 
@@ -111,18 +129,11 @@ deriving instance Show (ReceiveAPI a)
 --(##) :: forall (c :: (* -> *) -> Constraint) f g m . (c m) => (f ~> m) -> (g ~> m)
 --(##) = undefined
 
-transport :: (Monad f) => (ReceiveAPI ~> f) -> (SendAPI ~> f)
-transport f (Sync v)  = do
-  r <- f (Receive v)
-  case r of
-    Nothing -> fail "no result returned in transport"
-    Just v -> return v
-transport f (Async v) = do
-  f (Receive v)
-  return ()
   
 data RemoteType = Strong | Weak
    deriving (Eq,Ord,Show)
+
+newtype Session = Session (forall a . RemoteMonad Command Procedure a -> IO a) 
 
 {-
 data Call :: * -> * where
@@ -163,6 +174,8 @@ instance FromJSON (Call ()) where
   parseJSON _ = fail "not an Object when parsing a Call ()"  
 -}
 
+-- | 'Args' follows the JSON-RPC spec: either a list of values,
+-- or an (unordered) list of named fields, or none.
 data Args where
     List :: [Value]         -> Args
     Named :: [(Text,Value)] -> Args
