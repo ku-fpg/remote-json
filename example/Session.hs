@@ -24,7 +24,7 @@ import Control.Natural
 
 sessions :: [Session]
 sessions = 
-  [ s | f :: (SendAPI ~> IO) -> Session  <- [ weakSession ]
+  [ s | f :: (SendAPI ~> IO) -> Session  <- [ weakSession, strongSession ]
       , s <- [ f $ transport $ router sequence $ remote
              , f $ traceSendAPI "session"
                  $ transport $ router sequence $ remote
