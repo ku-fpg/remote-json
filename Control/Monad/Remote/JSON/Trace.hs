@@ -20,7 +20,6 @@ module Control.Monad.Remote.JSON.Trace where
         
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.Remote.JSON (Session(..))
-import           Control.Monad.Remote.Fresh
 import           Control.Monad.State
 import           Control.Natural
 import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
