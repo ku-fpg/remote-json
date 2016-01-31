@@ -72,5 +72,8 @@ script:
  - cabal test -j1 --show-details=always
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
+ - cd remote-json-client
+ - pwd
+ - cabal cabal configure -v2 
 
 # EOF
