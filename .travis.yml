@@ -72,8 +72,14 @@ script:
  - cabal test -j1 --show-details=always
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
+ - cabal install
+
  - cd remote-json-client
- - pwd
- - cabal cabal configure -v2 
+ - cabal configure -v2 
+ - cabal build -j1 # this builds all libraries and executables (including tests/benchmarks)
+ - cabal test -j1 --show-details=always
+ - cabal check
+ - cabal sdist   # tests that a source-distribution can be generated
+ - cabal install
 
 # EOF
