@@ -75,6 +75,7 @@ script:
  - cabal install
 
  - cd remote-json-client
+ - cabal install -j --only-dependencies --enable-tests --enable-benchmarks
  - cabal configure -v2 
  - cabal build -j1 # this builds all libraries and executables (including tests/benchmarks)
  - cabal test -j1 --show-details=always
@@ -85,6 +86,7 @@ script:
 
 
  - cd remote-json-server
+ - cabal install -j --only-dependencies --enable-tests --enable-benchmarks
  - cabal configure -v2 
  - cabal build -j1 # this builds all libraries and executables (including tests/benchmarks)
  - cabal test -j1 --show-details=always
