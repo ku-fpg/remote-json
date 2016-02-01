@@ -56,7 +56,7 @@ router s f (Receive v@(Array a))
                                -- the server MUST NOT return an empty Array and should
                                -- return nothing at all.
           vs -> return (Just (toJSON vs))
-rounter s f _ = return $ Just $ invalidRequest
+router s f (Receive _) = return $ Just $ invalidRequest
         
 -- The simple router handle a single call.
 simpleRouter :: forall m . MonadCatch m 
