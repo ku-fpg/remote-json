@@ -41,7 +41,7 @@ module Control.Monad.Remote.JSON.Types (
   ) where
 
 import           Control.Applicative
-import           Control.Natural
+--import           Control.Natural
 
 import           Data.Aeson
 import           Data.Aeson.Types

@@ -29,19 +29,12 @@ module Control.Monad.Remote.JSON.Router
         , parseError        
         ) where
         
-import           Control.Applicative
-import           Control.Exception.Base (PatternMatchFail(..))
-import           Control.Monad
 import           Control.Monad.Catch
 import           Control.Monad.Remote.JSON.Types
-import           Control.Monad.State
 import           Control.Natural
 
 import           Data.Aeson
-import           Data.Aeson.Types
-import           Data.Text(Text, append, pack, unpack)
-import qualified Data.Text.Lazy as LT
-import           Data.Text.Lazy.Encoding(decodeUtf8)
+import           Data.Text(Text)
 import           Data.Typeable
 import qualified Data.Vector as V
 import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))

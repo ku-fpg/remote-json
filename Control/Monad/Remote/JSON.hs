@@ -34,21 +34,14 @@ module Control.Monad.Remote.JSON (
         Args(..)
   ) where
 
-import           Control.Applicative
 import           Control.Monad
-import qualified Control.Monad.Fail as Fail
+import           Control.Monad.Fail() 
 import           Control.Monad.Remote.JSON.Types
 import           Control.Monad.State
-import           Control.Monad.Catch
-import           Control.Natural
+import           Control.Monad.Catch()
 
 import           Data.Aeson
-import           Data.Aeson.Types
-import           Data.Text(Text, append, pack, unpack)
-import qualified Data.Text.Lazy as LT
-import           Data.Text.Lazy.Encoding(decodeUtf8)
-import           Data.Typeable
-import qualified Data.Vector as V
+import           Data.Text(Text)
 import           Control.Remote.Monad
 import qualified Control.Remote.Monad.Packet.Weak as WP
 import qualified Control.Remote.Monad.Packet.Strong as SP
