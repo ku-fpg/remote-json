@@ -4,5 +4,4 @@ If you want to work with the remote-json sandbox, you can use
 
 ````
 % cabal sandbox init --sandbox=../.cabal-sandbox
-% cabal sandbox add-source ..
 ````
