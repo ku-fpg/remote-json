@@ -87,9 +87,9 @@ result m = do
         return r
 
 runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Notification Method a -> IO a
-runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))
+runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall_ $ n))
 runWeakRPC f (WP.Procedure m) = do
-          v <- f (Sync (toJSON $ mkMethodCall m $ Number 1))
+          v <- f (Sync (toJSON $ mkMethodCall_ m $ Number 1))
           (a,_) <- parseMethodResult m v
           return a
 
@@ -104,7 +104,7 @@ runStrongRPC f packet = evalStateT (go f packet) []
             go f (SP.Procedure m) = do 
                             st <- get
                             put []
-                            let toSend = (map (toJSON . NotificationCall) st) ++ [toJSON $ mkMethodCall m $ Number 1]
+                            let toSend = (map (toJSON . NotificationCall_) st) ++ [toJSON $ mkMethodCall_ m $ Number 1]
                             v <- liftIO $ f (Sync $ toJSON toSend)
                             -- Expecting an array, always
                             case fromJSON v of
@@ -209,7 +209,7 @@ sendWeak s (Procedure nm args) = do
   where i = 1 :: Int
 
 -- it might be cleaner to have the state be the Value, not the Call ().
-sendStrong :: Session -> RPC a -> StateT [Call ()] IO a
+sendStrong :: Session -> RPC a -> StateT [Call_ ()] IO a
 sendStrong _ (Pure a)   = return a
 sendStrong s (Bind f k) = sendStrong s f >>= sendStrong s . k
 sendStrong s (Ap f a)   = sendStrong s f <*> sendStrong s a

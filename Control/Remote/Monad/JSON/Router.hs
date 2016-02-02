@@ -66,8 +66,8 @@ simpleRouter f v = case call <$> fromJSON v of
     Success m -> m
     Error e1 ->  return $ Just $ invalidRequest
   where
-        call :: Call -> m (Maybe Value)
-        call (MethodCall (Method nm args) tag) = (do
+        call :: Call_ -> m (Maybe Value)
+        call (MethodCall_ (Method nm args) tag) = (do
                 v <- f (Procedure (Method nm args))
                 return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
@@ -84,7 +84,7 @@ simpleRouter f v = case call <$> fromJSON v of
                                return $ Just $ toJSON 
                                       $ errorResponse (-32603) "Internal error" tag                                
                           ]
-        call (NotificationCall n) =
+        call (NotificationCall_ n) =
             (f (Command n) >> return Nothing) `catchAll` \ _ -> return Nothing
 
 -- | 'transport' connects the ability to recieve a message with the ability
@@ -119,7 +119,7 @@ data MethodNotFound = MethodNotFound
 
 instance Exception MethodNotFound
 
--- | Throw this exception when a 'Call a -> IO a' fails to match a method
+-- | Throw this exception when a 'Call_ a -> IO a' fails to match a method
 --   or notification.
 methodNotFound :: MonadThrow m => m a
 methodNotFound = throwM $ MethodNotFound
@@ -129,6 +129,6 @@ data InvalidParams = InvalidParams
 
 instance Exception InvalidParams
 
--- | Throw this for when a 'Call a -> IO a' method matches, but has invalid params.
+-- | Throw this for when a 'Call_ a -> IO a' method matches, but has invalid params.
 invalidParams :: MonadThrow m => m a
 invalidParams = throwM $ InvalidParams
