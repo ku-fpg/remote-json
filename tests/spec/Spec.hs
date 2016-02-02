@@ -46,7 +46,7 @@ runNotification (Notification "notify_sum" _)   = return $ ()
 runNotification _ = methodNotFound
 
 -- Avoid skolem
---newtype C = C (forall a . Call_ -> IO a)
+--newtype C = C (forall a . JSONCall a  -> IO a)
 
 main = do
   tests <- readTests "tests/spec/Spec.txt"

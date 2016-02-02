@@ -28,8 +28,8 @@ module Control.Remote.Monad.JSON.Types (
   , Method(..)
   , Args(..)
     -- * Non-GADT combination of 'Notification' and 'Method'
-  , Call_(..)
-  , mkMethodCall_
+  , JSONCall(..)
+  , mkMethodCall
     -- * Sending and Receiving APIs
   , SendAPI(..)
   , ReceiveAPI(..)
@@ -68,44 +68,44 @@ data Method :: * -> * where
 deriving instance Show (Method a)
 
 -- | This is the non-GADT, JSON-serializable version of Notification and Method.
-data Call_ :: * where
-    NotificationCall_ :: Notification          -> Call_
-    MethodCall_       :: Method Value -> Value -> Call_
+data JSONCall :: * where
+    NotificationCall :: Notification          -> JSONCall
+    MethodCall       :: Method Value -> Value -> JSONCall
 
--- | The GADT version of MethodCall_
-mkMethodCall_ :: Method a -> Value -> Call_
-mkMethodCall_ m@(Method {}) v = MethodCall_ m v
+-- | The GADT version of MethodCall
+mkMethodCall :: Method a -> Value -> JSONCall
+mkMethodCall m@(Method {}) v = MethodCall m v
 
-instance Show Call_ where
-   show (MethodCall_ (Method nm args) tag)         = unpack nm ++ show args ++ "#" ++ LT.unpack (decodeUtf8 (encode tag))
-   show (NotificationCall_ (Notification nm args)) = unpack nm ++ show args
+instance Show JSONCall where
+   show (MethodCall (Method nm args) tag)         = unpack nm ++ show args ++ "#" ++ LT.unpack (decodeUtf8 (encode tag))
+   show (NotificationCall (Notification nm args)) = unpack nm ++ show args
 
-instance ToJSON Call_ where
-  toJSON (MethodCall_ (Method nm args) tag) = object $
+instance ToJSON JSONCall where
+  toJSON (MethodCall (Method nm args) tag) = object $
           [ "jsonrpc" .= ("2.0" :: Text)
           , "method" .= nm
           , "id" .= tag
           ] ++ case args of
                  None -> []
                  _    -> [ "params" .= args ]
-  toJSON (NotificationCall_ (Notification nm args)) = object $
+  toJSON (NotificationCall (Notification nm args)) = object $
           [ "jsonrpc" .= ("2.0" :: Text)
           , "method" .= nm
           ] ++ case args of
                  None -> []
                  _    -> [ "params" .= args ]
-instance FromJSON Call_ where           
+instance FromJSON JSONCall where           
   -- This douple-parses the params, an can be fixed
   parseJSON (Object o) = 
-    ((\ nm args tag -> MethodCall_ (Method nm args) tag)
+    ((\ nm args tag -> MethodCall (Method nm args) tag)
         <$> o .: "method"
         <*> (o .: "params" <|> return None)
         <*> o .: "id") <|>
-    ((\ nm args -> NotificationCall_ (Notification nm args))
+    ((\ nm args -> NotificationCall (Notification nm args))
         <$> o .: "method"
         <*> (o .: "params" <|> return None))
         
-  parseJSON _ = fail "not an Object when parsing a Call_ Value"  
+  parseJSON _ = fail "not an Object when parsing a JSONCall Value"  
 
 -- The JSON RPC Monad
 newtype RPC a = RPC (RemoteMonad Notification Method a)
