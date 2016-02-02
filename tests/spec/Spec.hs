@@ -14,8 +14,8 @@ import qualified Data.Text.Lazy as LT
 import           Data.Text.Lazy.Encoding(decodeUtf8)
 
 import           Control.Monad (when)
-import           Control.Monad.Remote.JSON.Router
-import           Control.Monad.Remote.JSON.Types -- for now
+import           Control.Remote.Monad.JSON.Router
+import           Control.Remote.Monad.JSON.Types -- for now
 import           Data.Attoparsec.ByteString
 import           System.Exit
 import           Test (readTests, Test(..))

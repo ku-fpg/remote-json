@@ -8,12 +8,12 @@ module Session (sessions) where
 
 import Control.Applicative
 import Control.Monad        
-import Control.Monad.Remote.JSON
-import Control.Monad.Remote.JSON.Types -- TODO RM
-import Control.Monad.Remote.JSON.Trace
-import Control.Monad.Remote.JSON.Router
-import Control.Monad.Remote.JSON.Server
-import Control.Monad.Remote.JSON.Client
+import Control.Remote.Monad.JSON
+import Control.Remote.Monad.JSON.Types -- TODO RM
+import Control.Remote.Monad.JSON.Trace
+import Control.Remote.Monad.JSON.Router
+import Control.Remote.Monad.JSON.Server
+import Control.Remote.Monad.JSON.Client
 import Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 import Data.Monoid
 import Data.Aeson

@@ -15,8 +15,8 @@ import           Data.Text.Encoding(decodeUtf8)
 import qualified Data.ByteString as BS
 
 import           Control.Monad
-import           Control.Monad.Remote.JSON.Router
-import           Control.Monad.Remote.JSON.Types -- for now
+import           Control.Remote.Monad.JSON.Router
+import           Control.Remote.Monad.JSON.Types -- for now
 import           Data.Attoparsec.ByteString hiding (parseTest)
 
 

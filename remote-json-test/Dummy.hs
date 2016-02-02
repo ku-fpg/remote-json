@@ -1,0 +1,3 @@
+module Dummy
+
+main= undefined

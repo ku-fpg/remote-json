@@ -3,8 +3,8 @@
 module Untyped where
 
 import Control.Monad        
-import Control.Monad.Remote.JSON
-import Control.Monad.Remote.JSON.Types -- TODO RM
+import Control.Remote.Monad.JSON
+import Control.Remote.Monad.JSON.Types -- TODO RM
 import Control.Applicative
 import Data.Monoid
 import Data.Aeson
