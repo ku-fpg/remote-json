@@ -6,16 +6,13 @@
 
 module Session (sessions) where
 
-import Control.Applicative
-import Control.Monad        
 import Control.Remote.Monad.JSON
 import Control.Remote.Monad.JSON.Types -- TODO RM
 import Control.Remote.Monad.JSON.Trace
 import Control.Remote.Monad.JSON.Router
 import Data.Monoid
 import Data.Aeson
-import Data.Maybe
-import Data.Text (Text,pack)
+import Data.Text (pack)
 import qualified Data.Text.IO as IO
 import System.Random
 import Data.Scientific as Scientific

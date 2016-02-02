@@ -54,15 +54,13 @@ traceReceiveAPI msg f (Receive v)  = do
 
 -- | A tracing version of the 'Packet a -> m a' natural transformation morphism.
 traceCallAPI :: MonadIO m => String -> (Call ~> m) -> (Call ~> m)
-traceCallAPI msg f = f
--- TODO
-{-
-traceCallAPI msg f p@(Procedure c@(Method {})) = do
-          liftIO $ putStrLn $ msg ++ " method " ++ show c
+traceCallAPI msg f p@(CallMethod nm args) = do
+          let method = Method nm args
+          liftIO $ putStrLn $ msg ++ " method " ++ show method
           r <- f p
           liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))
           return r
-traceCallAPI msg f p@(Command n@(Notification {})) = do
+traceCallAPI msg f p@(CallNotification nm args) = do
+          let n = Notification nm args
           liftIO $ putStrLn $ msg ++ " notification " ++ show n
           f p
--}
