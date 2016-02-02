@@ -7,7 +7,8 @@ module DSL (temperature, say, fib, send, DSLSession(..)) where
 
 import Control.Monad
 import qualified Control.Remote.Monad.JSON as R
-import qualified Control.Remote.Monad.JSON.Types as R import Control.Applicative
+import qualified Control.Remote.Monad.JSON.Types as R 
+import Control.Applicative
 import Data.Monoid
 import Data.Aeson
 import Data.Maybe
