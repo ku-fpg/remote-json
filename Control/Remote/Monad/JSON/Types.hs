@@ -135,6 +135,7 @@ data RemoteType = Strong | Weak
 
 newtype Session = Session (forall a . RemoteMonad Notification Method a -> IO a) 
 
+
 {-
 data Call :: * -> * where
   Method         :: Text -> Args -> Value -> Call Value

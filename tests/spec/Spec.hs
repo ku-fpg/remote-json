@@ -21,9 +21,9 @@ import           System.Exit
 import           Test (readTests, Test(..))
 import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
-f :: WeakPacket Notification Method a -> IO a
-f (Command c)   = runNotification c
-f (Procedure p) = runMethod p
+f :: Call a -> IO a
+f (CallNotification nm args)    = runNotification (Notification nm args)
+f (CallMethod nm args) = runMethod (Method nm args)
   
 runMethod :: Method a -> IO a
 runMethod (Method "subtract" (List [Number a,Number b])) = return $ Number (a - b)

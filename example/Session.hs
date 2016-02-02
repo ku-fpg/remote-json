@@ -12,7 +12,6 @@ import Control.Remote.Monad.JSON
 import Control.Remote.Monad.JSON.Types -- TODO RM
 import Control.Remote.Monad.JSON.Trace
 import Control.Remote.Monad.JSON.Router
-import Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 import Data.Monoid
 import Data.Aeson
 import Data.Maybe
@@ -30,14 +29,14 @@ sessions =
                  $ transport $ router sequence $ remote
              , f $ transport $ traceReceiveAPI "transport"
                              $ router sequence $ remote
-             , f $ transport $ router sequence $ traceWeakPacketAPI "call"
+             , f $ transport $ router sequence $ traceCallAPI "call"
                                                $ remote 
              ]
   ]
 
-remote :: WeakPacket Notification Method a -> IO a
-remote (Command c)   = remoteCommand c
-remote (Procedure p) = remoteProcedure p
+remote :: Call a -> IO a
+remote (CallNotification nm args)    = remoteCommand (Notification nm args)
+remote (CallMethod nm args)          = remoteProcedure (Method nm args)
 
 remoteCommand :: Notification -> IO ()
 remoteCommand (Notification "say" args) = case args of

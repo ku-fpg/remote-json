@@ -19,9 +19,10 @@ Portability: GHC
 module Control.Remote.Monad.JSON.Trace where
         
 import           Control.Remote.Monad.JSON.Types
+import           Control.Remote.Monad.JSON.Router (Call(..))
 import           Control.Monad.State
 import           Control.Natural
-import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
+
 
 import           Data.Aeson
 import qualified Data.Text.Lazy as LT
@@ -52,13 +53,16 @@ traceReceiveAPI msg f (Receive v)  = do
           return r
 
 -- | A tracing version of the 'Packet a -> m a' natural transformation morphism.
-traceWeakPacketAPI :: MonadIO m => String -> (WeakPacket Notification Method ~> m) -> (WeakPacket Notification Method ~> m)
-traceWeakPacketAPI msg f p@(Procedure c@(Method {})) = do
+traceCallAPI :: MonadIO m => String -> (Call ~> m) -> (Call ~> m)
+traceCallAPI msg f = f
+-- TODO
+{-
+traceCallAPI msg f p@(Procedure c@(Method {})) = do
           liftIO $ putStrLn $ msg ++ " method " ++ show c
           r <- f p
           liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))
           return r
-traceWeakPacketAPI msg f p@(Command n@(Notification {})) = do
+traceCallAPI msg f p@(Command n@(Notification {})) = do
           liftIO $ putStrLn $ msg ++ " notification " ++ show n
           f p
-
+-}

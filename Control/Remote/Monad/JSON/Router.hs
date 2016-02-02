@@ -21,7 +21,7 @@ module Control.Remote.Monad.JSON.Router
           router
           -- * The datatype that represents what we receive and what we dispatch
         , ReceiveAPI(..)
-        , WeakPacket(..)
+        , Call(..)
           -- * Utilty methods
         , transport
         , methodNotFound
@@ -39,12 +39,19 @@ import           Data.Typeable
 import qualified Data.Vector as V
 import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
+
+-- | 'Call' is a user-visable deep embedding of a method or notification call.
+-- Server's provide transformations on this to implement remote-side call dispatching.
+data Call :: * -> * where
+  CallMethod       :: Text -> Args -> Call Value
+  CallNotification :: Text -> Args -> Call ()
+
 -- | "The Server MAY process a batch rpc call as a set of concurrent tasks,
 --    processing them in any order and with any width of parallelism."
 --   We control this using the first argument.         
 router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
-       -> (WeakPacket Notification Method ~> m) -> (ReceiveAPI ~> m)
+       -> (Call ~> m) -> (ReceiveAPI ~> m)
 router s f (Receive v@(Object {})) = simpleRouter f v
 router s f (Receive v@(Array a)) 
   | V.null a = return $ Just $ invalidRequest
@@ -60,7 +67,7 @@ router s f (Receive _) = return $ Just $ invalidRequest
         
 -- The simple router handle a single call.
 simpleRouter :: forall m . MonadCatch m 
-       => (WeakPacket  Notification Method ~> m) 
+       => (Call ~> m) 
        -> Value -> m (Maybe Value)
 simpleRouter f v = case call <$> fromJSON v of
     Success m -> m
@@ -68,7 +75,7 @@ simpleRouter f v = case call <$> fromJSON v of
   where
         call :: Call_ -> m (Maybe Value)
         call (MethodCall_ (Method nm args) tag) = (do
-                v <- f (Procedure (Method nm args))
+                v <- f (CallMethod nm args)
                 return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
                        , "result" .= v
@@ -84,8 +91,8 @@ simpleRouter f v = case call <$> fromJSON v of
                                return $ Just $ toJSON 
                                       $ errorResponse (-32603) "Internal error" tag                                
                           ]
-        call (NotificationCall_ n) =
-            (f (Command n) >> return Nothing) `catchAll` \ _ -> return Nothing
+        call (NotificationCall_ (Notification nm args)) =
+            (f (CallNotification nm args) >> return Nothing) `catchAll` \ _ -> return Nothing
 
 -- | 'transport' connects the ability to recieve a message with the ability
 -- to send a message. Typically this is done using TCP/IP and HTTP,
