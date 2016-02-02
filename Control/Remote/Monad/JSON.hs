@@ -94,17 +94,22 @@ runWeakRPC f (WP.Procedure m) = do
           return a
 
 runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a ->  IO a
-runStrongRPC f packet = evalStateT (go f packet) []
+runStrongRPC f packet = evalStateT (go f packet) ([]++)
       where
-            go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a -> StateT [Notification] IO a
+            go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a -> StateT ([Notification]->[Notification]) IO a
             go f (SP.Command n cs) = do 
-                                      modify $ \st -> st ++ [n]
+                                      modify $ \st -> st . ([n] ++)
                                       go f cs
-            go _ (SP.Done) =  liftIO $ return ()
+            go _ (SP.Done) = do
+                             st <- get
+                             put ([] ++)
+                             let toSend = (map(toJSON . NotificationCall) (st [])) 
+                             liftIO $ f (Async $ toJSON toSend)
+
             go f (SP.Procedure m) = do 
                             st <- get
-                            put []
-                            let toSend = (map (toJSON . NotificationCall) st) ++ [toJSON $ mkMethodCall m $ Number 1]
+                            put ([]++)
+                            let toSend = (map (toJSON . NotificationCall) (st []) ) ++ [toJSON $ mkMethodCall m $ Number 1]
                             v <- liftIO $ f (Sync $ toJSON toSend)
                             -- Expecting an array, always
                             case fromJSON v of

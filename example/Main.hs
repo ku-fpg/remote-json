@@ -5,6 +5,7 @@ import Typed
 import DSL
 import Session       
 
+main:: IO()
 main = do
         putStrLn "## Untyped ##"
         sequence_ [ untyped s

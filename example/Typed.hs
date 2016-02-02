@@ -2,15 +2,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Typed (typed) where
 
-import Control.Monad        
-import Control.Applicative
-import Data.Monoid
-import Data.Aeson
-import Data.Maybe
-import Data.Text (Text)
-import qualified Data.Text.IO as IO
-import System.Random
-
 import DSL 
 
 typed :: DSLSession -> IO ()
