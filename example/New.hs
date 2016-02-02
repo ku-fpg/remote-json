@@ -3,14 +3,14 @@
 module New 
  where
 
-import Control.Monad.Remote.Fresh
-import Control.Monad.Remote.JSON.Debug
-import           Control.Monad.Remote.JSON.Types (Args(..), SendAPI(..))
+import Control.Remote.Monad.Fresh
+import Control.Remote.Monad.JSON.Debug
+import           Control.Remote.Monad.JSON.Types (Args(..), SendAPI(..))
 
 
 import  qualified         Data.Text as Text
 import           Data.Aeson 
-import           Control.Monad.Remote.JSON.Client
+import           Control.Remote.Monad.JSON.Client
 
 
 
