@@ -12,7 +12,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 {-|
-Module:      Control.Monad.Remote.JSON where
+Module:      Control.Remote.Monad.JSON where
 Copyright:   (C) 2015, The University of Kansas
 License:     BSD-style (see the file LICENSE)
 Maintainer:  Andy Gill
@@ -20,7 +20,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON.Types (
+module Control.Remote.Monad.JSON.Types (
     -- * RPC Monad
     RPC(..)
     -- * 'Notification', 'Method' and 'Args'

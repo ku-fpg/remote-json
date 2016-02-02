@@ -8,7 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 {-|
-Module:      Control.Monad.Remote.JSON.Router where
+Module:      Control.Remote.Monad.JSON.Router where
 Copyright:   (C) 2015, The University of Kansas
 License:     BSD-style (see the file LICENSE)
 Maintainer:  Andy Gill
@@ -16,7 +16,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON.Router 
+module Control.Remote.Monad.JSON.Router 
         ( -- * The server RPC router
           router
           -- * The datatype that represents what we receive and what we dispatch
@@ -30,7 +30,7 @@ module Control.Monad.Remote.JSON.Router
         ) where
         
 import           Control.Monad.Catch
-import           Control.Monad.Remote.JSON.Types
+import           Control.Remote.Monad.JSON.Types
 import           Control.Natural
 
 import           Data.Aeson

@@ -8,7 +8,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 {-|
-Module:      Control.Monad.Remote.JSON.Debug where
+Module:      Control.Remote.Monad.JSON.Debug where
 Copyright:   (C) 2015, The University of Kansas
 License:     BSD-style (see the file LICENSE)
 Maintainer:  Andy Gill
@@ -16,9 +16,9 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON.Trace where
+module Control.Remote.Monad.JSON.Trace where
         
-import           Control.Monad.Remote.JSON.Types
+import           Control.Remote.Monad.JSON.Types
 import           Control.Monad.State
 import           Control.Natural
 import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))

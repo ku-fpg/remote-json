@@ -2,18 +2,16 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Control.Monad.Remote.JSON.Server
+module Control.Remote.Monad.JSON.Server
         ( -- * Ways of building the actionable parts of a Scotty server
           scottyReceiveAPI
         , serverReceiveAPI
         ) where
 
-import Control.Monad (void, forM_)
-import Control.Monad.Remote.JSON.Types (ReceiveAPI(..))
+import Control.Remote.Monad.JSON.Types (ReceiveAPI(..))
 import           Control.Monad.IO.Class
-import Data.Aeson
+import Data.Aeson()
 import Data.Default.Class (def)
-import Data.Text (Text)
 import Web.Scotty (scottyOpts)
 import Web.Scotty.Trans as T
 import Network.Wai.Handler.Warp (setPort)

@@ -2,13 +2,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Control.Monad.Remote.JSON.Client
+module Control.Remote.Monad.JSON.Client
         ( clientSendAPI
         ) where
 
 import Control.Lens ((^.))
 import Control.Monad (void)
-import Control.Monad.Remote.JSON.Types (SendAPI(..))
+import Control.Remote.Monad.JSON.Types (SendAPI(..))
 import Data.Aeson
 import Network.Wreq
 

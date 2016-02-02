@@ -9,7 +9,7 @@
 {-# LANGUAGE DataKinds #-}
 
 {-|
-Module:      Control.Monad.Remote.JSON where
+Module:      Control.Remote.Monad.JSON where
 Copyright:   (C) 2015, The University of Kansas
 License:     BSD-style (see the file LICENSE)
 Maintainer:  Andy Gill
@@ -17,7 +17,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Monad.Remote.JSON (
+module Control.Remote.Monad.JSON (
         -- * JSON-RPC DSL
         RPC,  -- abstract
         method,
@@ -36,7 +36,7 @@ module Control.Monad.Remote.JSON (
 
 import           Control.Monad
 import           Control.Monad.Fail() 
-import           Control.Monad.Remote.JSON.Types
+import           Control.Remote.Monad.JSON.Types
 import           Control.Monad.State
 import           Control.Monad.Catch()
 
