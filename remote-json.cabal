@@ -83,3 +83,19 @@ Test-Suite test-example
 
   default-language:    Haskell2010
   ghc-options:         -Wall
+
+
+test-suite remote-monad-properties
+  type:                exitcode-stdio-1.0
+  main-is:             Test.hs
+  build-depends:       base                   >= 4.7 && < 5
+                     , containers             >= 0.1 && < 0.6
+                     , remote-monad           == 0.1.0.0
+                     , QuickCheck             == 2.8.*
+                     , quickcheck-instances   >= 0.1 && < 0.4
+                     , tasty                  >= 0.8 && < 0.12
+                     , tasty-quickcheck       >= 0.8 && < 0.9
+  hs-source-dirs:      tests/qc
+  default-language:    Haskell2010
+  ghc-options:         -Wall
+
