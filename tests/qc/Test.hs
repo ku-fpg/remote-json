@@ -22,12 +22,6 @@ import Data.Aeson (Value(..), toJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq, fromList)
 
-import qualified Control.Remote.Monad as M
-import           Control.Remote.Monad.Packet.Applicative as AP
-import qualified Control.Remote.Monad.Packet.Weak as WP
-import qualified Control.Remote.Monad.Packet.Strong as SP
-import qualified Control.Remote.Applicative as A
-
 import qualified Control.Remote.Monad.JSON as JSON
 import qualified Control.Remote.Monad.JSON.Router as R
 
@@ -56,14 +50,6 @@ testProperties = testGroup "QuickCheck remote monad properties"
 
 ----------------------------------------------------------------
 -- Basic stack machine, with its interpreter
-
-data C :: * where
-  Push :: A -> C
-
-data P :: * -> * where
-  Pop :: P (Maybe A)
-
--- Basic evaluator
 runCall :: IORef [String] -> IORef [A] -> R.Call a -> IO a
 runCall tr ref (R.CallNotification "push" (JSON.List [Number n])) = do
     let a :: A = A (round n)
@@ -82,33 +68,6 @@ runCall tr ref (R.CallMethod "pop" _) = do
           return (Just (unA x))
     return $ toJSON res
 runCall tr ref _ = R.methodNotFound
-
-runWP :: IORef [String] -> IORef [A] -> WP.WeakPacket C P a -> IO a
-runWP tr ref (WP.Command (Push a)) = do
-    stack <- readIORef ref
-    writeIORef ref (a : stack)
-    modifyIORef tr (("push " ++ show a) :)
-    return ()
-runWP tr ref (WP.Procedure (Pop)) = do
-    modifyIORef tr (("pop") :)
-    stack <- readIORef ref
-    case stack of
-      [] -> return Nothing
-      (x:xs) -> do
-          writeIORef ref xs
-          modifyIORef tr ((show x) :)
-          return (Just x)
-
-
-runSP :: IORef [String] -> IORef [A] -> SP.StrongPacket C P a -> IO a
-runSP tr ref (SP.Command   c pk) = runWP tr ref (WP.Command c) >> runSP tr ref pk
-runSP tr ref (SP.Procedure p)    = runWP tr ref (WP.Procedure p)
-runSP tr ref SP.Done             = pure ()
-
-runAppP :: IORef [String] -> IORef [A] -> ApplicativePacket C P a -> IO a
-runAppP tr ref (AP.Command   g c) = runAppP tr ref g <*  runWP tr ref (WP.Command c)
-runAppP tr ref (AP.Procedure g p) = runAppP tr ref g <*> runWP tr ref (WP.Procedure p)
-runAppP tr ref (AP.Pure a)        = pure a
 
 ----------------------------------------------------------------
 -- The different ways of running remote monads.
