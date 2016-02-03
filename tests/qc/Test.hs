@@ -5,7 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
-
+{-# LANGUAGE OverloadedStrings #-}
 
 {-|
 Module:      Main
@@ -18,6 +18,7 @@ Stability:   Experimental
 -}
 module Main (main) where
 
+import Data.Aeson (Value(..), toJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq, fromList)
 
@@ -27,12 +28,14 @@ import qualified Control.Remote.Monad.Packet.Weak as WP
 import qualified Control.Remote.Monad.Packet.Strong as SP
 import qualified Control.Remote.Applicative as A
 
+import qualified Control.Remote.Monad.JSON as JSON
+import qualified Control.Remote.Monad.JSON.Router as R
 
 import Test.QuickCheck 
 import Test.QuickCheck.Instances ()
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
-import Test.QuickCheck.Poly (A)
+import Test.QuickCheck.Poly (A(..))
 import Test.QuickCheck.Monadic
 import Test.QuickCheck.Gen.Unsafe (promote)
 
@@ -61,6 +64,24 @@ data P :: * -> * where
   Pop :: P (Maybe A)
 
 -- Basic evaluator
+runCall :: IORef [String] -> IORef [A] -> R.Call a -> IO a
+runCall tr ref (R.CallNotification "push" (JSON.List [Number n])) = do
+    let a :: A = A (round n)
+    stack <- readIORef ref
+    writeIORef ref (a : stack)
+    modifyIORef tr (("push " ++ show a) :)
+    return ()
+runCall tr ref (R.CallMethod "pop" _) = do
+    modifyIORef tr (("pop") :)
+    stack <- readIORef ref
+    res <- case stack of
+      [] -> return Nothing 
+      (x:xs) -> do
+          writeIORef ref xs
+          modifyIORef tr ((show x) :)
+          return (Just (unA x))
+    return $ toJSON res
+runCall tr ref _ = R.methodNotFound
 
 runWP :: IORef [String] -> IORef [A] -> WP.WeakPacket C P a -> IO a
 runWP tr ref (WP.Command (Push a)) = do
@@ -92,53 +113,34 @@ runAppP tr ref (AP.Pure a)        = pure a
 ----------------------------------------------------------------
 -- The different ways of running remote monads.
 
-data RemoteMonad = RemoteMonad String (forall a . IORef [String] -> IORef [A] -> M.RemoteMonad C P a -> IO a)
+data RemoteMonad = RemoteMonad String (forall a . IORef [String] -> IORef [A] -> JSON.RPC a -> IO a)
 
 instance Show RemoteMonad where
   show (RemoteMonad msg _) = "Remote Monad: " ++ msg
   
 instance Arbitrary RemoteMonad where
   arbitrary = elements 
-    [ runWeakMonadWeakPacket
-    , runStrongMonadWeakPacket
-    , runStrongMonadStrongPacket
---    , runApplicativeMonadWeakPacket
---    , runApplicativeMonadStrongPacket
-    , runApplicativeMonadApplicativePacket
+    [ runWeakRPC
+    , runStrongRPC
     ]
 
 --- This is a complete enumeration of ways of building remote monads
   
-runWeakMonadWeakPacket :: RemoteMonad
-runWeakMonadWeakPacket = RemoteMonad "WeakMonadWeakPacket" 
-  $ \ tr ref -> M.runWeakMonad (runWP tr ref)
+runWeakRPC :: RemoteMonad
+runWeakRPC = RemoteMonad "WeakMonadWeakPacket" 
+  $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (runCall tr ref))))
 
-runStrongMonadWeakPacket :: RemoteMonad
-runStrongMonadWeakPacket = RemoteMonad "StrongMonadWeakPacket" 
-  $ \ tr ref -> M.runStrongMonad (SP.runStrongPacket (runWP tr ref))
+runStrongRPC :: RemoteMonad
+runStrongRPC = RemoteMonad "WeakMonadWeakPacket" 
+  $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (runCall tr ref))))
 
-runStrongMonadStrongPacket :: RemoteMonad
-runStrongMonadStrongPacket = RemoteMonad "StrongMonadStrongPacket" 
-  $ \ tr ref -> M.runStrongMonad (runSP tr ref)
-{-
-runApplicativeMonadWeakPacket :: RemoteMonad
-runApplicativeMonadWeakPacket = RemoteMonad "ApplicativeMonadWeakPacket" 
-  $ \ tr ref -> M.runApplicativeMonad (A.runApplicative (runWP tr ref))
-
-runApplicativeMonadStrongPacket :: RemoteMonad
-runApplicativeMonadStrongPacket = RemoteMonad "ApplicativeMonadStrongPacket" 
-  $ \ tr ref -> M.runApplicativeMonad (A.runApplicative (runSP tr ref))
--}
-runApplicativeMonadApplicativePacket :: RemoteMonad
-runApplicativeMonadApplicativePacket = RemoteMonad "ApplicativeMonadApplicativePacket" 
-  $ \ tr ref -> M.runApplicativeMonad (runAppP tr ref)
 
 
 ----------------------------------------------------------------
 
-data DeviceM = Device (IORef [String]) (IORef [A]) (forall a . M.RemoteMonad C P a -> IO a)
+data DeviceM = Device (IORef [String]) (IORef [A]) (forall a . JSON.RPC a -> IO a)
 
-sendM :: DeviceM -> M.RemoteMonad C P a -> IO a
+sendM :: DeviceM -> JSON.RPC a -> IO a
 sendM (Device _ _ f) = f
 
 newDevice :: [A] 
@@ -161,7 +163,15 @@ traceDevice (Device tr _ _) = readIORef tr
 
 ----------------------------------------------------------------
 
-newtype Remote a = Remote (M.RemoteMonad C P a)
+push :: A -> JSON.RPC ()
+push (A n) = JSON.notification "push" $ JSON.List [Number $ fromIntegral $ n]
+
+pop :: JSON.RPC (Maybe A)
+pop = fmap (fmap A) $ JSON.result $ JSON.method "pop" $ JSON.None
+
+----------------------------------------------------------------
+
+newtype Remote a = Remote (JSON.RPC a)
 
 instance Show (Remote a) where
   show _ = "<REMOTE>"
@@ -172,14 +182,14 @@ instance Arbitrary (Remote A) where
 ----------------------------------------------------------------
 
 data RemoteBind :: * -> * where
-  RemoteBind :: Arbitrary a => M.RemoteMonad C P a -> (a -> M.RemoteMonad C P b) -> RemoteBind b
+  RemoteBind :: Arbitrary a => JSON.RPC a -> (a -> JSON.RPC b) -> RemoteBind b
 
 instance Show (RemoteBind a) where
   show _ = "<REMOTEBIND>"
 
 ----------------------------------------------------------------
 
-arbitraryRemoteMonad' :: (CoArbitrary a, Arbitrary a) => [Gen (M.RemoteMonad C P a)] -> Int -> Gen (M.RemoteMonad C P a)
+arbitraryRemoteMonad' :: (CoArbitrary a, Arbitrary a) => [Gen (JSON.RPC a)] -> Int -> Gen (JSON.RPC a)
 arbitraryRemoteMonad' base 0 = oneof base 
 arbitraryRemoteMonad' base n = frequency 
   [ (1 , oneof base)
@@ -205,24 +215,24 @@ arbitraryRemoteMonad' base n = frequency
     )
   ]
 
-arbitraryRemoteMonadUnit :: Int -> Gen (M.RemoteMonad C P ())
+arbitraryRemoteMonadUnit :: Int -> Gen (JSON.RPC ())
 arbitraryRemoteMonadUnit = arbitraryRemoteMonad'
   [ return (return ())
-  , M.command . Push <$> arbitrary
+  , push <$> arbitrary
   ]
 
-arbitraryRemoteMonadMaybeA :: Int -> Gen (M.RemoteMonad C P (Maybe A))
+arbitraryRemoteMonadMaybeA :: Int -> Gen (JSON.RPC (Maybe A))
 arbitraryRemoteMonadMaybeA = arbitraryRemoteMonad'
   [ return <$> arbitrary
-  , return $ M.procedure Pop
+  , return $ pop
   ]
 
-arbitraryRemoteMonadA :: Int -> Gen (M.RemoteMonad C P A)
+arbitraryRemoteMonadA :: Int -> Gen (JSON.RPC A)
 arbitraryRemoteMonadA = arbitraryRemoteMonad'
   [ return <$> arbitrary
   ]
 
-arbitraryBind :: (Int -> Gen (M.RemoteMonad C P a)) -> Int -> Gen (RemoteBind a)
+arbitraryBind :: (Int -> Gen (JSON.RPC a)) -> Int -> Gen (RemoteBind a)
 arbitraryBind f n = oneof
   [ do m <- arbitraryRemoteMonadUnit (n `div` 2)
        k  <- promote (`coarbitrary` f (n `div` 2))  -- look for a better way of doing this
@@ -241,7 +251,7 @@ arbitraryBind f n = oneof
 prop_push :: RemoteMonad -> [A] -> A -> Property
 prop_push runMe xs x = monadicIO $ do
     dev <- run $ newDevice xs runMe
-    ()  <- run $ sendM dev (M.command (Push x))
+    ()  <- run $ sendM dev (push x)
     ys  <- run $ readDevice  dev
     assert (ys == (x : xs))
 
@@ -249,7 +259,7 @@ prop_push runMe xs x = monadicIO $ do
 prop_pop :: RemoteMonad -> [A] -> Property
 prop_pop runMe xs = monadicIO $ do
     dev <- run $ newDevice xs runMe
-    r   <- run $ sendM dev (M.procedure Pop)
+    r   <- run $ sendM dev pop
     ys  <- run $ readDevice  dev
     case xs of
       [] -> assert (r == Nothing && ys == [])

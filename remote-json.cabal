@@ -85,12 +85,14 @@ Test-Suite test-example
   ghc-options:         -Wall
 
 
-test-suite remote-monad-properties
+test-suite remote-json-properties
   type:                exitcode-stdio-1.0
   main-is:             Test.hs
-  build-depends:       base                   >= 4.7 && < 5
+  build-depends:       aeson                  >= 0.8 && < 0.10
+                     , base                   >= 4.7 && < 5
                      , containers             >= 0.1 && < 0.6
                      , remote-monad           == 0.1.0.0
+                     , remote-json            == 0.2
                      , QuickCheck             == 2.8.*
                      , quickcheck-instances   >= 0.1 && < 0.4
                      , tasty                  >= 0.8 && < 0.12

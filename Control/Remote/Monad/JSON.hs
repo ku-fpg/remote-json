@@ -105,7 +105,7 @@ runStrongRPC f packet = evalStateT (go f packet) ([]++)
                              put ([] ++)
                              let toSend = (map(toJSON . NotificationCall) (st [])) 
                              liftIO $ f (Async $ toJSON toSend)
-
+                             return ()
             go f (SP.Procedure m) = do 
                             st <- get
                             put ([]++)
