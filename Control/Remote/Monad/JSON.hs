@@ -7,6 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RecursiveDo #-}
 
 {-|
 Module:      Control.Remote.Monad.JSON where
@@ -27,6 +28,7 @@ module Control.Remote.Monad.JSON (
         Session,
         weakSession,
         strongSession,
+        applicativeSession,
         SendAPI(..),
         -- * Utility to help parse the result 'Value' into a native Haskell value.
         result,
@@ -45,6 +47,7 @@ import           Data.Text(Text)
 import           Control.Remote.Monad
 import qualified Control.Remote.Monad.Packet.Weak as WP
 import qualified Control.Remote.Monad.Packet.Strong as SP
+import qualified Control.Remote.Monad.Packet.Applicative as AP
 
 {-
 procedureToJSON :: Procedure a -> Value -> Value
@@ -94,19 +97,19 @@ runWeakRPC f (WP.Procedure m) = do
           return a
 
 runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a ->  IO a
-runStrongRPC f packet = evalStateT (go f packet) ([]++)
+runStrongRPC f packet = evalStateT (go  packet) ([]++)
       where
-            go :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a -> StateT ([Notification]->[Notification]) IO a
-            go f (SP.Command n cs) = do 
+            go :: forall a . SP.StrongPacket Notification Method a -> StateT ([Notification]->[Notification]) IO a
+            go  (SP.Command n cs) = do 
                                       modify $ \st -> st . ([n] ++)
-                                      go f cs
-            go _ (SP.Done) = do
+                                      go cs
+            go (SP.Done) = do
                              st <- get
                              put ([] ++)
                              let toSend = (map(toJSON . NotificationCall) (st [])) 
                              liftIO $ f (Async $ toJSON toSend)
                              return ()
-            go f (SP.Procedure m) = do 
+            go (SP.Procedure m) = do 
                             st <- get
                             put ([]++)
                             let toSend = (map (toJSON . NotificationCall) (st []) ) ++ [toJSON $ mkMethodCall m $ Number 1]
@@ -118,127 +121,54 @@ runStrongRPC f packet = evalStateT (go f packet) ([]++)
                                   return a
                               _ -> fail "non singleton result from strong packet result"
 
+type IDTag = Int
+
+runApplicativeRPC :: (forall a . SendAPI a -> IO a) -> AP.ApplicativePacket Notification Method a -> IO a
+runApplicativeRPC f packet = do 
+                    
+                   ((),(ls,_)) <-runStateT (go  packet) ( ([]++) , 1)
+                   case AP.superCommand packet of
+                     Just r -> do f (Async $ toJSON $ ls [])
+                                  return r
+                     Nothing ->  do
+                           rr <- f (Sync $ toJSON $ ls [])
+                           case fromJSON rr of
+                             Success (rs :: [Value]) -> do 
+                                   (r,_) <- runStateT (go2  packet) rs 
+                                   return r
+                             _ -> fail "runApplicativeRPC Failure"
+      where 
+            --TODO Consider removing Base IO in monad (StateT-> State)
+            go :: forall a . AP.ApplicativePacket Notification Method a -> StateT ([JSONCall]->[JSONCall], IDTag) IO ()
+            go (AP.Pure _ ) = return ()
+            go (AP.Command aps n) = do 
+                                      go aps
+                                      modify $ \(st,tag) -> (st . ([(NotificationCall n)] ++), tag)
+                                      return ()
+            go (AP.Procedure aps m ) = do 
+                            go aps
+                            modify $ \(st, tag) -> (st. ([mkMethodCall m (Number  (fromIntegral tag))]++), tag + 1)
+                            return  ()
+
+            go2 :: forall a . AP.ApplicativePacket Notification Method a -> StateT ([Value]) IO a
+            go2 (AP.Pure x) = return x
+            go2 (AP.Command aps _) = go2 aps
+            go2 (AP.Procedure aps m ) = do 
+                            rf <- go2 aps
+                            (r:rs) <- get
+                            put rs
+                            (ra,_) <- parseMethodResult m r
+                            return $  rf ra
+       
 -- TODO: Add an IO here, to allow setup
 weakSession :: (forall a . SendAPI a -> IO a) -> Session
 weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
 
 strongSession :: (forall a . SendAPI a -> IO a) -> Session
-strongSession f = Session $ \ m -> (runMonad (runStrongRPC f) m)
+strongSession f = Session $ \ m -> runMonad (runStrongRPC f) m
+
+applicativeSession :: (forall a . SendAPI a -> IO a) -> Session
+applicativeSession f = Session $ \ m -> runMonad (runApplicativeRPC f) m
 
 send :: Session -> RPC a -> IO a
 send (Session f) (RPC m) = f m
-
-
-
-{-
-data RPC :: * -> * where
-    Pure         :: a ->                     RPC a
-    Bind         :: RPC a -> (a -> RPC b) -> RPC b
-    Ap           :: RPC (a -> b) -> RPC a -> RPC b
-    Procedure    :: Text -> Args ->          RPC Value
-    Command      :: Text -> Args ->          RPC ()
-    Throw        :: (Exception e) => e ->    RPC a
-  deriving Typeable
-
-instance Functor RPC where
-  fmap f m = pure f <*> m
-
-instance Applicative RPC where
-  pure  = Pure
-  (<*>) = Ap
-
-instance Monad RPC where
-  return     = pure
-  (>>=)      = Bind
-  (>>) m1 m2 = flip const <$> m1 <*> m2  -- so that the SAF can take advantage of this
-  fail       = Fail.fail
-
-instance Fail.MonadFail RPC where
-  fail = Throw . userError
-
-instance MonadThrow RPC where
-  throwM = Throw
-
--- We use the terms method and notification because this is the terminology
--- used by JSON-RPC. They *are* remote monad procedures and commands.
-
-method :: Text -> Args -> RPC Value
-method nm args = Procedure nm args
-
-notification :: Text -> Args -> RPC ()
-notification nm args = Command nm args
-
--- | Utility for parsing the result, or failing
-result :: (Monad m, FromJSON a) => m Value -> m a
-result m = do
-        Success r <- liftM fromJSON m
-        return r
-
-data Session = Session
-        { remoteMonad       :: RemoteType
-        , remoteSession     :: SendAPI ~> IO
-        }
-
-session :: (SendAPI ~> IO) -> Session
-session = Session Weak
-
--- | 'send' the remote monad `RPC` to the remote site, for execution.
-send :: Session -> RPC a -> IO a
-send session m = case remoteMonad session of
-        Weak   -> sendWeak session m
-        Strong -> do (a,st) <- runStateT (sendStrong session m) []
-                     when (not (null st)) $ do
-                        void $ remoteSession session $ Async $ toJSON st
-                     return a
-
-data SendState :: RemoteType -> * where
- WeakState :: Int -> SendState Weak
-
-initWeakState :: SendState Weak
-initWeakState = WeakState 1
-
-sendWeak :: Session -> RPC a -> IO a
-sendWeak _ (Pure a)   = return a
-sendWeak s (Bind f k) = sendWeak s f >>= sendWeak s . k
-sendWeak s (Ap f a)   = sendWeak s f <*> sendWeak s a
-sendWeak _ (Throw e) = throwM e
-sendWeak s (Command nm args) =
-      remoteSession s $ Async $ toJSON $ Notification nm args
-sendWeak s (Procedure nm args) = do
-        r <- remoteSession s $ Sync $ toJSON $ Method nm args (toJSON i)
-        case fromJSON r of
-                  Success (Response v tag)
-                          | tag == toJSON i -> return v
-                          | otherwise       -> fail "remote error: tag numbers do not match"
-                  _ -> fail "remote error: failing response returned"
-  where i = 1 :: Int
-
--- it might be cleaner to have the state be the Value, not the Call ().
-sendStrong :: Session -> RPC a -> StateT [JSONCall ()] IO a
-sendStrong _ (Pure a)   = return a
-sendStrong s (Bind f k) = sendStrong s f >>= sendStrong s . k
-sendStrong s (Ap f a)   = sendStrong s f <*> sendStrong s a
-sendStrong s (Throw e) = do
-                      st <- get
-                      put []
-                      let toSend = map toJSON st
-                      liftIO $ remoteSession s $ Async $ toJSON $ toSend
-                      throwM e
-
-sendStrong s (Command nm args) = do
-      modify $ \ st -> st ++ [Notification nm args]
-      return ()
-sendStrong s (Procedure nm args) = do
-        st <- get
-        put []
-        let toSend = map toJSON st ++ [toJSON $ Method nm args (toJSON i)]
-        -- This use of 'toJSON' is really building an Array
-        r <- liftIO $ remoteSession s $ Sync $ toJSON $ toSend
-        case fromJSON r of
-                  Success [Response v tag]
-                          | tag == toJSON i -> return v
-                          | otherwise       -> fail "remote error: tag numbers do not match"
-                  _ -> fail "remote error: failing response returned"
-  where i = 1 :: Int
-
--}

@@ -81,18 +81,22 @@ instance Arbitrary RemoteMonad where
   arbitrary = elements 
     [ runWeakRPC
     , runStrongRPC
+    , runApplicativeRPC
     ]
 
 --- This is a complete enumeration of ways of building remote monads
   
 runWeakRPC :: RemoteMonad
-runWeakRPC = RemoteMonad "WeakMonadWeakPacket" 
+runWeakRPC = RemoteMonad "WeakPacket" 
   $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (runCall tr ref))))
 
 runStrongRPC :: RemoteMonad
-runStrongRPC = RemoteMonad "WeakMonadWeakPacket" 
+runStrongRPC = RemoteMonad "StrongPacket" 
   $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (runCall tr ref))))
 
+runApplicativeRPC :: RemoteMonad
+runApplicativeRPC = RemoteMonad "ApplicativePacket" 
+  $ \ tr ref -> JSON.send (JSON.applicativeSession (R.transport (R.router sequence (runCall tr ref))))
 
 
 ----------------------------------------------------------------
