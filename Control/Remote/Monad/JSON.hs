@@ -30,7 +30,7 @@ module Control.Remote.Monad.JSON (
         strongSession,
         applicativeSession,
         SendAPI(..),
-        -- * Utility to help parse the result 'Value' into a native Haskell value.
+        -- * Utility Functions
         result,
         -- * Types
         Args(..)
@@ -39,7 +39,6 @@ module Control.Remote.Monad.JSON (
 import           Control.Monad
 import           Control.Monad.Fail() 
 import           Control.Remote.Monad.JSON.Types
-import           Control.Monad.State
 import           Control.Monad.Catch()
 
 import           Data.Aeson
@@ -70,21 +69,13 @@ commandToJSON (Notification nm args) = object $
         _    -> [ "params" .= args ] 
 -}
                                      
--- parse the result of sending/executing a procedure, and return the result and the id
--- TODO: think about how to handle ErrorResponse.
-{-parseMethodResult :: Monad m => Method a -> Value -> m (a,Value)
-parseMethodResult (Method {}) repl = do
-    case fromJSON repl of
-      Success (Response v tag) -> return (v,tag)
-      _ -> error $ "bad packet in parseMethodResult:" ++  show repl
--}
 method :: Text -> Args -> RPC Value
 method nm args = RPC $ procedure $ Method nm args
 
 notification :: Text -> Args -> RPC ()
 notification nm args = RPC $ command $ Notification nm args
 
--- | Utility for parsing the result, or failing
+-- | Utility for parsing the result Value into a native Haskell value
 result :: (Monad m, FromJSON a) => m Value -> m a
 result m = do
         Success r <- liftM fromJSON m
@@ -99,23 +90,17 @@ runWeakRPC f (WP.Procedure m) = do
           parseMethodResult m tid res 
 
 runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a ->  IO a
-runStrongRPC f packet = evalStateT (go  packet) ([]++)
+runStrongRPC f packet = go  packet ([]++)
       where
-            go :: forall a . SP.StrongPacket Notification Method a -> StateT ([Notification]->[Notification]) IO a
-            go  (SP.Command n cs) = do 
-                                      modify $ \st -> st . ([n] ++)
-                                      go cs
-            go (SP.Done) = do
-                             st <- get
-                             put ([] ++)
-                             let toSend = (map(toJSON . NotificationCall) (st [])) 
+            go :: forall a . SP.StrongPacket Notification Method a -> ([Notification]->[Notification]) -> IO a
+            go  (SP.Command n cs) ls =  go cs (ls . ([n] ++))
+            go (SP.Done) ls = do
+                             let toSend = (map(toJSON . NotificationCall) (ls [])) 
                              liftIO $ f (Async $ toJSON toSend)
                              return ()
-            go (SP.Procedure m) = do 
-                            st <- get
-                            put ([]++)
+            go (SP.Procedure m) ls = do 
                             let tid = 1
-                            let toSend = (map (toJSON . NotificationCall) (st []) ) ++ [toJSON $ mkMethodCall m tid]
+                            let toSend = (map (toJSON . NotificationCall) (ls []) ) ++ [toJSON $ mkMethodCall m tid]
                             v <- liftIO $ f (Sync $ toJSON toSend)
                             res <- parseReply v 
                             parseMethodResult m tid res
@@ -134,7 +119,6 @@ runApplicativeRPC f packet = do
                            ff rs 
            
       where 
-            --TODO Consider removing Base IO in monad (StateT-> State)
             go :: forall a . AP.ApplicativePacket Notification Method a -> IDTag
                -> ([JSONCall]->[JSONCall], (HM.HashMap IDTag Value -> IO a))
             go (AP.Pure a ) tid =  (id,  \ _ -> return a)
@@ -145,7 +129,6 @@ runApplicativeRPC f packet = do
                                            )
                                       where (ls, ff) = go aps (tid + 1)
         
--- TODO: Add an IO here, to allow setup
 weakSession :: (forall a . SendAPI a -> IO a) -> Session
 weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
 
@@ -154,6 +137,7 @@ strongSession f = Session $ \ m -> runMonad (runStrongRPC f) m
 
 applicativeSession :: (forall a . SendAPI a -> IO a) -> Session
 applicativeSession f = Session $ \ m -> runMonad (runApplicativeRPC f) m
+
 
 send :: Session -> RPC a -> IO a
 send (Session f) (RPC m) = f m
