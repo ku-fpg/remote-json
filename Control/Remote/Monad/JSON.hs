@@ -48,6 +48,7 @@ import           Control.Remote.Monad
 import qualified Control.Remote.Monad.Packet.Weak as WP
 import qualified Control.Remote.Monad.Packet.Strong as SP
 import qualified Control.Remote.Monad.Packet.Applicative as AP
+import qualified Data.HashMap.Strict as HM
 
 {-
 procedureToJSON :: Procedure a -> Value -> Value
@@ -71,12 +72,12 @@ commandToJSON (Notification nm args) = object $
                                      
 -- parse the result of sending/executing a procedure, and return the result and the id
 -- TODO: think about how to handle ErrorResponse.
-parseMethodResult :: Monad m => Method a -> Value -> m (a,Value)
+{-parseMethodResult :: Monad m => Method a -> Value -> m (a,Value)
 parseMethodResult (Method {}) repl = do
     case fromJSON repl of
       Success (Response v tag) -> return (v,tag)
       _ -> error $ "bad packet in parseMethodResult:" ++  show repl
-
+-}
 method :: Text -> Args -> RPC Value
 method nm args = RPC $ procedure $ Method nm args
 
@@ -92,9 +93,10 @@ result m = do
 runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Notification Method a -> IO a
 runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))
 runWeakRPC f (WP.Procedure m) = do
-          v <- f (Sync (toJSON $ mkMethodCall m $ Number 1))
-          (a,_) <- parseMethodResult m v
-          return a
+          let tid = 1
+          v <- f (Sync (toJSON $ mkMethodCall m  tid))
+          res <- parseReply v
+          parseMethodResult m tid res 
 
 runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a ->  IO a
 runStrongRPC f packet = evalStateT (go  packet) ([]++)
@@ -112,54 +114,37 @@ runStrongRPC f packet = evalStateT (go  packet) ([]++)
             go (SP.Procedure m) = do 
                             st <- get
                             put ([]++)
-                            let toSend = (map (toJSON . NotificationCall) (st []) ) ++ [toJSON $ mkMethodCall m $ Number 1]
+                            let tid = 1
+                            let toSend = (map (toJSON . NotificationCall) (st []) ) ++ [toJSON $ mkMethodCall m tid]
                             v <- liftIO $ f (Sync $ toJSON toSend)
-                            -- Expecting an array, always
-                            case fromJSON v of
-                              Success [v0 :: Value] -> do
-                                  (a,_) <- parseMethodResult m v0
-                                  return a
-                              _ -> fail "non singleton result from strong packet result"
+                            res <- parseReply v 
+                            parseMethodResult m tid res
 
-type IDTag = Int
 
 runApplicativeRPC :: (forall a . SendAPI a -> IO a) -> AP.ApplicativePacket Notification Method a -> IO a
 runApplicativeRPC f packet = do 
                     
-                   ((),(ls,_)) <-runStateT (go  packet) ( ([]++) , 1)
+                   let (ls,ff) = go packet 1 
                    case AP.superCommand packet of
                      Just r -> do f (Async $ toJSON $ ls [])
-                                  return r
+                                  ff HM.empty
                      Nothing ->  do
                            rr <- f (Sync $ toJSON $ ls [])
-                           case fromJSON rr of
-                             Success (rs :: [Value]) -> do 
-                                   (r,_) <- runStateT (go2  packet) rs 
-                                   return r
-                             _ -> fail "runApplicativeRPC Failure"
+                           rs <- parseReply rr
+                           ff rs 
+           
       where 
             --TODO Consider removing Base IO in monad (StateT-> State)
-            go :: forall a . AP.ApplicativePacket Notification Method a -> StateT ([JSONCall]->[JSONCall], IDTag) IO ()
-            go (AP.Pure _ ) = return ()
-            go (AP.Command aps n) = do 
-                                      go aps
-                                      modify $ \(st,tag) -> (st . ([(NotificationCall n)] ++), tag)
-                                      return ()
-            go (AP.Procedure aps m ) = do 
-                            go aps
-                            modify $ \(st, tag) -> (st. ([mkMethodCall m (Number  (fromIntegral tag))]++), tag + 1)
-                            return  ()
-
-            go2 :: forall a . AP.ApplicativePacket Notification Method a -> StateT ([Value]) IO a
-            go2 (AP.Pure x) = return x
-            go2 (AP.Command aps _) = go2 aps
-            go2 (AP.Procedure aps m ) = do 
-                            rf <- go2 aps
-                            (r:rs) <- get
-                            put rs
-                            (ra,_) <- parseMethodResult m r
-                            return $  rf ra
-       
+            go :: forall a . AP.ApplicativePacket Notification Method a -> IDTag
+               -> ([JSONCall]->[JSONCall], (HM.HashMap IDTag Value -> IO a))
+            go (AP.Pure a ) tid =  (id,  \ _ -> return a)
+            go (AP.Command aps n) tid = (ls . ([(NotificationCall n)] ++), ff)
+                                      where  (ls,ff) = go aps tid 
+            go (AP.Procedure aps m ) tid = ( ls . ([mkMethodCall m tid]++)
+                                           , \ mp -> ff mp <*> parseMethodResult m tid mp
+                                           )
+                                      where (ls, ff) = go aps (tid + 1)
+        
 -- TODO: Add an IO here, to allow setup
 weakSession :: (forall a . SendAPI a -> IO a) -> Session
 weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
