@@ -49,29 +49,11 @@ import qualified Control.Remote.Monad.Packet.Strong as SP
 import qualified Control.Remote.Monad.Packet.Applicative as AP
 import qualified Data.HashMap.Strict as HM
 
-{-
-procedureToJSON :: Procedure a -> Value -> Value
-procedureToJSON (Method nm args) tag  = object $      
- [ "jsonrpc" .= ("2.0" :: Text)      
- , "method" .= nm                    
- , "id" .= tag                       
- ] ++ case args of                   
-        None -> []                   
-        _    -> [ "params" .= args ] 
-
-
-commandToJSON ::Command -> Value
-commandToJSON (Notification nm args) = object $    
- [ "jsonrpc" .= ("2.0" :: Text)      
- , "method" .= nm                    
- ] ++ case args of                   
-        None -> []                   
-        _    -> [ "params" .= args ] 
--}
-                                     
+-- | Sets up a JSON-RPC method call with the function name and arguments                                  
 method :: Text -> Args -> RPC Value
 method nm args = RPC $ procedure $ Method nm args
 
+-- | Sets up a JSON-RPC notification call with the function name and arguments
 notification :: Text -> Args -> RPC ()
 notification nm args = RPC $ command $ Notification nm args
 
@@ -129,15 +111,22 @@ runApplicativeRPC f packet = do
                                            )
                                       where (ls, ff) = go aps (tid + 1)
         
+-- | Takes a function that handles the sending of Async and Sync messages,
+-- and sends each Notification and Method by itself         
 weakSession :: (forall a . SendAPI a -> IO a) -> Session
 weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
 
+-- | Takes a function that handles the sending of Async and Sync messages,
+-- and bundles Notifications together punctuated by an optional Method
 strongSession :: (forall a . SendAPI a -> IO a) -> Session
 strongSession f = Session $ \ m -> runMonad (runStrongRPC f) m
 
+-- | Takes a function that handles the sending of Async and Sync messages,
+-- and bundles together Notifications and Procedures that are used in
+-- Applicative calls
 applicativeSession :: (forall a . SendAPI a -> IO a) -> Session
 applicativeSession f = Session $ \ m -> runMonad (runApplicativeRPC f) m
 
-
+-- | Send a RPC Notifications and Methods by using the given session
 send :: Session -> RPC a -> IO a
 send (Session f) (RPC m) = f m
