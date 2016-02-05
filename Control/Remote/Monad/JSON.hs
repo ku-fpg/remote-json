@@ -78,12 +78,12 @@ runStrongRPC f packet = go  packet ([]++)
             go  (SP.Command n cs) ls =  go cs (ls . ([n] ++))
             go (SP.Done) ls = do
                              let toSend = (map(toJSON . NotificationCall) (ls [])) 
-                             liftIO $ f (Async $ toJSON toSend)
+                             f (Async $ toJSON toSend)
                              return ()
             go (SP.Procedure m) ls = do 
                             let tid = 1
                             let toSend = (map (toJSON . NotificationCall) (ls []) ) ++ [toJSON $ mkMethodCall m tid]
-                            v <- liftIO $ f (Sync $ toJSON toSend)
+                            v <- f (Sync $ toJSON toSend)
                             res <- parseReply v 
                             parseMethodResult m tid res
 
