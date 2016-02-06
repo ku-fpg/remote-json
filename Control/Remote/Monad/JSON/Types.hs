@@ -15,7 +15,7 @@
 Module:      Control.Remote.Monad.JSON where
 Copyright:   (C) 2015, The University of Kansas
 License:     BSD-style (see the file LICENSE)
-Maintainer:  Andy Gill
+Maintainer:  Justin Dawson
 Stability:   Alpha
 Portability: GHC
 -}

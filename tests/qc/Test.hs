@@ -11,7 +11,7 @@
 Module:      Main
 Copyright:   (C) 2015 The University of Kansas
 License:     BSD-style (see the file LICENSE)
-Maintainer:  Andy Gill
+Maintainer:  Justin Dawson
 Stability:   Experimental
 
 @QuickCheck@ properties for natural transformations.

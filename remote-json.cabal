@@ -5,9 +5,9 @@ description:         JSON RPC, where you can using monads and applicative functo
                      to bundle JSON RPC requests and commands.
 license:             BSD3
 license-file:        LICENSE
-author:              Andy Gill
-maintainer:          andygill@ku.edu
--- copyright:
+author:              Justin Dawson and Andy Gill
+maintainer:          JDawson@ku.edu
+copyright:           (c) 2016 The University of Kansas
 category:            Network
 build-type:          Simple
 extra-source-files:  README.md

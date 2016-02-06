@@ -4,9 +4,9 @@ synopsis:            Web client wrapper for remote-json
 description:         Web client, using wreq, for the JSON RPC protcol.
 license:             BSD3
 license-file:        LICENSE
-author:              Andy Gill
-maintainer:          andygill@ku.edu
--- copyright:
+author:              Justin Dawson and Andy Gill
+maintainer:          JDawson@ku.edu
+copyright:           (c) 2016 The University of Kansas
 category:            Network
 build-type:          Simple
 extra-source-files:  README.md
