@@ -112,7 +112,7 @@ runApplicativeRPC f packet = do
                                       where (ls, ff) = go aps (tid + 1)
         
 -- | Takes a function that handles the sending of Async and Sync messages,
--- and sends each Notification and Method by itself         
+-- and sends each Notification and Method one at a time     
 weakSession :: (forall a . SendAPI a -> IO a) -> Session
 weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
 
@@ -127,6 +127,6 @@ strongSession f = Session $ \ m -> runMonad (runStrongRPC f) m
 applicativeSession :: (forall a . SendAPI a -> IO a) -> Session
 applicativeSession f = Session $ \ m -> runMonad (runApplicativeRPC f) m
 
--- | Send a RPC Notifications and Methods by using the given session
+-- | Send RPC Notifications and Methods by using the given session
 send :: Session -> RPC a -> IO a
 send (Session f) (RPC m) = f m

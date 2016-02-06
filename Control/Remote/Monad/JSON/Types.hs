@@ -142,16 +142,18 @@ instance FromJSON JSONCall where
 newtype RPC a = RPC (RemoteMonad Notification Method a)
   deriving (Functor, Applicative, Monad)
   
--- The client-side send function API.
--- You provide a way of dispatching this, to implement a client.
+-- | The client-side send function API.
+-- The user provides a way of dispatching this, to implement a client.
+-- An example of this using wreq is found in remote-json-client
 data SendAPI :: * -> * where
     Sync  :: Value -> SendAPI Value
     Async :: Value -> SendAPI ()
 
 deriving instance Show (SendAPI a)
 
--- The server-side recieived API.
--- You provide a way of dispatching this, to implement a server.
+-- } The server-side recieived API.
+-- The user provides a way of dispatching this, to implement a server.
+-- An example of this using scotty is found in remote-json-server
 data ReceiveAPI :: * -> * where
     Receive :: Value -> ReceiveAPI (Maybe Value)
 
