@@ -103,8 +103,11 @@ transport f (Sync v)  = do
     Nothing -> fail "no result returned in transport"
     Just v0 -> return v0
 transport f (Async v) = do
-  _ <- f (Receive v)
-  return ()
+  r <- f (Receive v)
+  case r of
+    Nothing -> return ()
+    Just v -> fail $ "unexpected result in transport: " ++ show v
+
 
 errorResponse :: Int -> Text -> Value -> Value
 errorResponse code msg theId = toJSON $
