@@ -4,7 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
 
-module Session (sessions) where
+module Session (sessionBuilders,routerBuilders) where
 
 import Control.Remote.Monad.JSON
 import Control.Remote.Monad.JSON.Types -- TODO RM
@@ -18,19 +18,22 @@ import System.Random
 import Data.Scientific as Scientific
 import Control.Natural
 
-sessions :: [Session]
-sessions = 
-  [ s | f :: (SendAPI ~> IO) -> Session  <- [ weakSession, strongSession ]
-      , s <- [ f $ transport $ router sequence $ remote
-             , f $ traceSendAPI "session"
-                 $ transport $ router sequence $ remote
-             , f $ transport $ traceReceiveAPI "transport"
-                             $ router sequence $ remote
-             , f $ transport $ router sequence $ traceCallAPI "call"
-                                               $ remote 
-             ]
+sessionBuilders :: [(SendAPI :~> IO) -> Session]
+sessionBuilders = 
+  [ \ (api :: SendAPI :~> IO) -> f ((t api) $$)
+  | f :: (SendAPI ~> IO) -> Session <- [ weakSession, strongSession, applicativeSession ]
+  , t <- [ id 
+         , \ api -> Nat $ traceSendAPI "send"  (api $$) 
+         ]
   ]
 
+routerBuilders :: [(ReceiveAPI :~> IO)]
+routerBuilders = 
+  [ Nat $ (t1 (Nat $ router sequence (t2 (Nat $ remote) $$)) $$)
+  | t1 <- [ id,\ api -> Nat $ traceReceiveAPI "receive" (api $$) ]
+  , t2 <- [ id, \ api -> Nat $ traceCallAPI     "call" (api $$) ]
+  ]
+  
 remote :: Call a -> IO a
 remote (CallNotification nm args)    = remoteCommand (Notification nm args)
 remote (CallMethod nm args)          = remoteProcedure (Method nm args)

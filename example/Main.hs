@@ -5,6 +5,18 @@ import Typed
 import DSL
 import Session       
 
+import Control.Remote.Monad.JSON
+import Control.Remote.Monad.JSON.Router (transport)
+import Control.Natural
+
+
+sessions :: [Session]
+sessions = 
+    [ sb (Nat $ transport (rb $$))
+    | sb <- sessionBuilders
+    , rb <- routerBuilders
+    ]
+
 main:: IO()
 main = do
         putStrLn "## Untyped ##"
