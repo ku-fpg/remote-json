@@ -19,7 +19,6 @@ import           Control.Remote.Monad.JSON.Types -- for now
 import           Data.Attoparsec.ByteString
 import           System.Exit
 import           Test (readTests, Test(..))
-import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
 
 f :: Call a -> IO a
 f (CallNotification nm args)    = runNotification (Notification nm args)
