@@ -37,8 +37,6 @@ import           Data.Aeson
 import           Data.Text(Text)
 import           Data.Typeable
 import qualified Data.Vector as V
-import           Control.Remote.Monad.Packet.Weak (WeakPacket(..))
-
 
 -- | 'Call' is a user-visable deep embedding of a method or notification call.
 -- Server's provide transformations on this to implement remote-side call dispatching.
@@ -52,8 +50,8 @@ data Call :: * -> * where
 router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
        -> (Call ~> m) -> (ReceiveAPI ~> m)
-router s f (Receive v@(Object {})) = simpleRouter f v
-router s f (Receive v@(Array a)) 
+router _ f (Receive v@(Object {})) = simpleRouter f v
+router s f (Receive (Array a)) 
   | V.null a = return $ Just $ invalidRequest
   | otherwise = do
         rs <- s (map (simpleRouter f) $ V.toList a)
@@ -63,7 +61,7 @@ router s f (Receive v@(Array a))
                                -- the server MUST NOT return an empty Array and should
                                -- return nothing at all.
           vs -> return (Just (toJSON vs))
-router s f (Receive _) = return $ Just $ invalidRequest
+router _ _ (Receive _) = return $ Just $ invalidRequest
         
 -- The simple router handle a single call.
 simpleRouter :: forall m . MonadCatch m 
@@ -71,23 +69,23 @@ simpleRouter :: forall m . MonadCatch m
        -> Value -> m (Maybe Value)
 simpleRouter f v = case call <$> fromJSON v of
     Success m -> m
-    Error e1 ->  return $ Just $ invalidRequest
+    Error _ ->  return $ Just $ invalidRequest
   where
         call :: JSONCall -> m (Maybe Value)
         call (MethodCall (Method nm args) tag) = (do
-                v <- f (CallMethod nm args)
+                r <- f (CallMethod nm args)
                 return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
-                       , "result" .= v
+                       , "result" .= r
                        , "id" .= tag
                        ]) `catches` 
-                          [ Handler $ \ (e :: MethodNotFound) -> 
+                          [ Handler $ \ (_ :: MethodNotFound) -> 
                                return $ Just $ toJSON 
                                       $ errorResponse (-32601) "Method not found" tag
-                          , Handler $ \ (e :: InvalidParams) -> 
+                          , Handler $ \ (_ :: InvalidParams) -> 
                                return $ Just $ toJSON 
                                       $ errorResponse (-32602) "Invalid params" tag
-                          , Handler $ \ (e :: SomeException) ->
+                          , Handler $ \ (_ :: SomeException) ->
                                return $ Just $ toJSON 
                                       $ errorResponse (-32603) "Internal error" tag                                
                           ]
@@ -103,9 +101,9 @@ transport f (Sync v)  = do
   r <- f (Receive v)
   case r of
     Nothing -> fail "no result returned in transport"
-    Just v -> return v
+    Just v0 -> return v0
 transport f (Async v) = do
-  f (Receive v)
+  _ <- f (Receive v)
   return ()
 
 errorResponse :: Int -> Text -> Value -> Value

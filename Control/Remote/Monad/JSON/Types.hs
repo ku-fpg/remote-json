@@ -57,13 +57,13 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 import qualified Data.Vector as V
 
 
--- The basic command type
+-- | The basic command type
 data Notification :: * where
     Notification :: Text -> Args -> Notification
 
 deriving instance Show Notification
 
--- The basic procedure type
+-- | The basic procedure type
 data Method :: * -> * where
     Method     :: Text -> Args -> Method Value
 
@@ -74,13 +74,14 @@ data JSONCall :: * where
     NotificationCall :: Notification          -> JSONCall
     MethodCall       :: Method Value -> Value -> JSONCall
 
+-- | Internal type of our tags
 type IDTag = Int
 
 -- | The GADT version of MethodCall
 mkMethodCall :: Method a -> IDTag -> JSONCall
 mkMethodCall m@(Method {}) tag = MethodCall m (Number (fromIntegral tag))
 
--- parseReply parses the reply JSON Value into Map of IDTag
+-- | parseReply parses the reply JSON Value into Map of IDTag
 -- to specific result from remote method call.
 -- This function supports both singleton and batch results
 parseReply :: Monad m => Value -> m (HM.HashMap IDTag Value)
@@ -90,15 +91,16 @@ parseReply v =  case fromJSON v of
                       
                  where
                    results :: [Value] -> HM.HashMap IDTag Value
-                   results rs =  foldl (\ acc v ->
-                                 case fromJSON v of
-                                    Success (Response v tag) -> 
+                   results rs = foldl (\ acc v1 ->
+                                 case fromJSON v1 of
+                                    Success (Response v2 tag) -> 
                                           case fromJSON tag of
-                                            Success t -> HM.insert t v acc
+                                            Success t -> HM.insert t v2 acc
                                             _    -> error "ParseReply : Unable to obtain tag "
                                     _ -> error "Bad response in parseReply"
                                                                        ) HM.empty rs
 
+-- | parseMethodResult looks up a result in the finite map created from the result.
 parseMethodResult :: Monad m => Method a -> IDTag -> HM.HashMap IDTag Value -> m a
 parseMethodResult (Method {}) tag hm = case HM.lookup tag hm of
                       Just x ->  case fromJSON x of
@@ -138,20 +140,23 @@ instance FromJSON JSONCall where
         
   parseJSON _ = fail "not an Object when parsing a JSONCall Value"  
 
--- The JSON RPC Monad
+-- | The JSON RPC remote monad
 newtype RPC a = RPC (RemoteMonad Notification Method a)
   deriving (Functor, Applicative, Monad)
   
 -- | The client-side send function API.
 -- The user provides a way of dispatching this, to implement a client.
 -- An example of this using wreq is found in remote-json-client
+--
+--   * For 'Sync', a JSON Value is send, and a JSON Value is received back as a reply.
+--   * For 'Async', a JSON Value is send, and the reply, if any, is ignored.
 data SendAPI :: * -> * where
     Sync  :: Value -> SendAPI Value
     Async :: Value -> SendAPI ()
 
 deriving instance Show (SendAPI a)
 
--- } The server-side recieived API.
+-- | The server-side recieived API.
 -- The user provides a way of dispatching this, to implement a server.
 -- An example of this using scotty is found in remote-json-server
 data ReceiveAPI :: * -> * where
@@ -159,9 +164,7 @@ data ReceiveAPI :: * -> * where
 
 deriving instance Show (ReceiveAPI a)
 
---(##) :: forall (c :: (* -> *) -> Constraint) f g m . (c m) => (f ~> m) -> (g ~> m)
---(##) = undefined
-  
+-- | Session is a handle used for where to send a sequence of monadic commands.
 newtype Session = Session (forall a . RemoteMonad Notification Method a -> IO a) 
 
 
@@ -205,6 +208,7 @@ instance FromJSON Tag where
   parseJSON (Object o) = Tag <$> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Tag"
  
+-- | internal. Used for error message.
 data ErrorMessage = ErrorMessage Int Text
   deriving Show
 
@@ -220,6 +224,7 @@ instance FromJSON ErrorMessage where
                           <*> o .: "message"
   parseJSON _ = fail "not an Object when parsing an ErrorMessage"
 
+-- | internal. Used for responses.
 data Response 
         = Response Value             Value
         | ErrorResponse ErrorMessage Value

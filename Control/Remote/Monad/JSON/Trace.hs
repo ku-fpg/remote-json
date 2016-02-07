@@ -20,7 +20,7 @@ module Control.Remote.Monad.JSON.Trace where
         
 import           Control.Remote.Monad.JSON.Types
 import           Control.Remote.Monad.JSON.Router (Call(..))
-import           Control.Monad.State
+import           Control.Monad.IO.Class(MonadIO,liftIO)
 import           Control.Natural
 
 

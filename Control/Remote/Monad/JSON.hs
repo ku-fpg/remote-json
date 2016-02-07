@@ -90,21 +90,21 @@ runStrongRPC f packet = go  packet ([]++)
 
 runApplicativeRPC :: (forall a . SendAPI a -> IO a) -> AP.ApplicativePacket Notification Method a -> IO a
 runApplicativeRPC f packet = do 
-                    
-                   let (ls,ff) = go packet 1 
                    case AP.superCommand packet of
-                     Just r -> do f (Async $ toJSON $ ls [])
-                                  ff HM.empty
+                     Just a -> do f (Async $ toJSON $ ls0 [])
+                                  return a
                      Nothing ->  do
-                           rr <- f (Sync $ toJSON $ ls [])
+                           rr <- f (Sync $ toJSON $ ls0 [])
                            rs <- parseReply rr
-                           ff rs 
+                           ff0 rs 
            
       where 
+            (ls0,ff0) = go packet 1 
+
             go :: forall a . AP.ApplicativePacket Notification Method a -> IDTag
                -> ([JSONCall]->[JSONCall], (HM.HashMap IDTag Value -> IO a))
-            go (AP.Pure a ) tid =  (id,  \ _ -> return a)
-            go (AP.Command aps n) tid = (ls . ([(NotificationCall n)] ++), ff)
+            go (AP.Pure a )         _tid = (id,  \ _ -> return a)
+            go (AP.Command aps n)    tid = (ls . ([(NotificationCall n)] ++), ff)
                                       where  (ls,ff) = go aps tid 
             go (AP.Procedure aps m ) tid = ( ls . ([mkMethodCall m tid]++)
                                            , \ mp -> ff mp <*> parseMethodResult m tid mp
@@ -117,7 +117,7 @@ weakSession :: (forall a . SendAPI a -> IO a) -> Session
 weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
 
 -- | Takes a function that handles the sending of Async and Sync messages,
--- and bundles Notifications together punctuated by an optional Method
+-- and bundles Notifications together terminated by an optional Method
 strongSession :: (forall a . SendAPI a -> IO a) -> Session
 strongSession f = Session $ \ m -> runMonad (runStrongRPC f) m
 
