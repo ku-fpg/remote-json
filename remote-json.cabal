@@ -31,7 +31,7 @@ description:         JSON RPC, where you can using monads and applicative functo
     &#32;&#32;&#32;&#32;say &#34;Hello, &#34;
     &#32;&#32;&#32;&#32;say &#34;World!&#34;
     &#32;&#32;&#32;&#32;temperature
-    &#32;&#32;print t                    
+    &#32;&#32;print t
     .
     &#45;&#45; Simulate the JSON-RPC server
     .
@@ -66,7 +66,7 @@ library
                      , Control.Remote.Monad.JSON.Types
 
   -- other-modules:
-  build-depends:       aeson                  >= 0.8  && < 0.10
+  build-depends:       aeson                  >= 0.8  && < 0.12
                      , base                   >= 4    && < 5
                      , exceptions             >= 0.8  && < 0.9
                      , fail
@@ -85,7 +85,7 @@ Test-Suite test-spec
   type:       exitcode-stdio-1.0
   hs-source-dirs: tests/spec
   main-is:    Spec.hs
-  build-depends:   aeson                  >= 0.8 && < 0.10
+  build-depends:   aeson                  >= 0.8 && < 0.12
                  , attoparsec             >= 0.13 && < 0.14
                  , base                   >= 4 && < 5
                  , bytestring             >= 0.10 && < 0.11
@@ -101,7 +101,7 @@ Test-Suite test-example
   type:       exitcode-stdio-1.0
   hs-source-dirs: remote-json-test
   main-is:    Unit.hs
-  build-depends:    aeson                  >= 0.8 && < 0.10
+  build-depends:    aeson                  >= 0.8 && < 0.12
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.3.1 && < 0.4
                   , random                 >= 1.1 && < 1.2
@@ -116,7 +116,7 @@ Test-Suite front-example
   type:       exitcode-stdio-1.0
   hs-source-dirs: front
   main-is:    Main.hs
-  build-depends:    aeson                  >= 0.8 && < 0.10
+  build-depends:    aeson                  >= 0.8 && < 0.12
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.3.1 && < 0.4
                   , remote-json            == 0.2
@@ -129,7 +129,7 @@ Test-Suite front-example
 test-suite remote-json-properties
   type:                exitcode-stdio-1.0
   main-is:             Test.hs
-  build-depends:       aeson                  >= 0.8 && < 0.10
+  build-depends:       aeson                  >= 0.8 && < 0.12
                      , base                   >= 4.7 && < 5
                      , containers             >= 0.1 && < 0.6
                      , natural-transformation >= 0.3.1 && < 0.4
