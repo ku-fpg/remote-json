@@ -38,7 +38,7 @@ sessions =
          <- [ Nat $ router sequence $ remote
             , Nat $ traceReceiveAPI "transport"
                   $ router sequence $ remote
-            , Nat $ router sequence $ traceWeakPacketAPI "call"
+            , Nat $ router sequence $ traceCallAPI "call"
                                     $ remote 
             ] `zip` [0..]
   ]
