@@ -38,9 +38,9 @@ traceSendAPI msg f (Sync v)  = do
           return r
 traceSendAPI msg f (Async v) = do
           liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode v))
-          r <- f (Async v)
+          () <- f (Async v)
           liftIO $ putStrLn $ msg ++ "// No response"
-          return r
+          return ()
 
 -- | A tracing natural transformation morphism over the Transport API.
 traceReceiveAPI :: MonadIO m => String -> (ReceiveAPI ~> m) -> (ReceiveAPI ~> m)
