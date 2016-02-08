@@ -106,7 +106,7 @@ transport f (Async v) = do
   r <- f (Receive v)
   case r of
     Nothing -> return ()
-    Just v -> fail $ "unexpected result in transport: " ++ show v
+    Just v0 -> fail $ "unexpected result in transport: " ++ show v0
 
 
 errorResponse :: Int -> Text -> Value -> Value
