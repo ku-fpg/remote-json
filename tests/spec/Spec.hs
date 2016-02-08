@@ -4,6 +4,7 @@
 
 module Main where
 
+import           Control.Natural
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.Maybe
@@ -51,7 +52,7 @@ main = do
   tests <- readTests "tests/spec/Spec.txt"
   let testWith i testName (Right v_req) v_expect = do
              putStrLn $ ("--> " ++) $ LT.unpack $ decodeUtf8 $ encode v_req
-             r <- router sequence f (Receive v_req)
+             r <- router sequence (nat f) # (Receive v_req)
              showResult i testName r v_expect
       testWith i testName (Left bad) v_expect = do
              putStr "--> " 

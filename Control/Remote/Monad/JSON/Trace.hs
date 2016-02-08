@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
@@ -30,37 +31,39 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 
 
 -- | A tracing natural transformation morphism over the Session API.
-traceSendAPI :: MonadIO m => String -> (SendAPI ~> m) -> (SendAPI ~> m)
-traceSendAPI msg f (Sync v)  = do
+traceSendAPI :: MonadIO m => String -> (SendAPI :~> m) -> (SendAPI :~> m)
+traceSendAPI msg f = nat $ \ case
+  (Sync v) -> do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
-          r <- f (Sync v)
+          r <- f # (Sync v)
           liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
-traceSendAPI msg f (Async v) = do
+  (Async v) -> do
           liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode v))
-          () <- f (Async v)
+          () <- f # (Async v)
           liftIO $ putStrLn $ msg ++ "// No response"
           return ()
 
 -- | A tracing natural transformation morphism over the Transport API.
-traceReceiveAPI :: MonadIO m => String -> (ReceiveAPI ~> m) -> (ReceiveAPI ~> m)
-traceReceiveAPI msg f (Receive v)  = do
+traceReceiveAPI :: MonadIO m => String -> (ReceiveAPI :~> m) -> (ReceiveAPI :~> m)
+traceReceiveAPI msg f = nat $ \ (Receive v) -> do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
-          r <- f (Receive v)
+          r <- f # (Receive v)
           case r of
             Nothing -> liftIO $ putStrLn $ msg ++ "// No response"
             Just _ -> liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
 
 -- | A tracing version of the 'Packet a -> m a' natural transformation morphism.
-traceCallAPI :: MonadIO m => String -> (Call ~> m) -> (Call ~> m)
-traceCallAPI msg f p@(CallMethod nm args) = do
+traceCallAPI :: MonadIO m => String -> (Call :~> m) -> (Call :~> m)
+traceCallAPI msg f = nat $ \ case
+  p@(CallMethod nm args) -> do
           let method = Method nm args
           liftIO $ putStrLn $ msg ++ " method " ++ show method
-          r <- f p
+          r <- f # p
           liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))
           return r
-traceCallAPI msg f p@(CallNotification nm args) = do
+  p@(CallNotification nm args) -> do
           let n = Notification nm args
           liftIO $ putStrLn $ msg ++ " notification " ++ show n
-          f p
+          f # p

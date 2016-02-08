@@ -24,9 +24,9 @@ import Control.Concurrent (forkIO,threadDelay)
 sessions :: IO [Session]
 sessions = do
   rbs <- sequence
-        [ do forkIO $ serverReceiveAPI port "/test-remote-json" (rb $$)
+        [ do forkIO $ serverReceiveAPI port "/test-remote-json" rb 
              threadDelay (1000 * 1000)
-             return $ Nat $ clientSendAPI ("http://localhost:" ++ show port ++ "/test-remote-json")
+             return $ clientSendAPI ("http://localhost:" ++ show port ++ "/test-remote-json")
         | (rb,port) <- routerBuilders `zip` [4000..]
         ]
   return 

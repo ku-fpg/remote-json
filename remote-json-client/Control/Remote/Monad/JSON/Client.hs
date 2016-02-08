@@ -1,6 +1,8 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Control.Remote.Monad.JSON.Client
         ( clientSendAPI
@@ -8,6 +10,7 @@ module Control.Remote.Monad.JSON.Client
 
 import Control.Lens ((^.))
 import Control.Monad (void)
+import Control.Natural
 import Control.Remote.Monad.JSON.Types (SendAPI(..))
 import Data.Aeson
 import Network.Wreq
@@ -17,9 +20,10 @@ import Network.Wreq
 -- https://s1.ripple.com:51234/ 
 
 -- | A way of building client 'SendAPI' support, using wreq.
-clientSendAPI :: String -> (forall a . SendAPI a -> IO a)
-clientSendAPI url (Sync v) = do
+clientSendAPI :: String -> (SendAPI :~> IO)
+clientSendAPI url = nat $ \ case
+  Sync v -> do
           r <- asJSON =<< post url (toJSON v)
           return $ r ^. responseBody
-clientSendAPI url (Async v) = do
+  Async v -> do
           void $ post url (toJSON v)

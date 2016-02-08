@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
@@ -49,25 +50,26 @@ data Call :: * -> * where
 --   We control this using the first argument.         
 router :: MonadCatch m 
        => (forall a. [m a] -> m [a])
-       -> (Call ~> m) -> (ReceiveAPI ~> m)
-router _ f (Receive v@(Object {})) = simpleRouter f v
-router s f (Receive (Array a)) 
-  | V.null a = return $ Just $ invalidRequest
-  | otherwise = do
-        rs <- s (map (simpleRouter f) $ V.toList a)
-        case [ v | Just v <- rs ] of
-          [] -> return Nothing -- If there are no Response objects contained within the
-                               -- Response array as it is to be sent to the client,
-                               -- the server MUST NOT return an empty Array and should
-                               -- return nothing at all.
-          vs -> return (Just (toJSON vs))
-router _ _ (Receive _) = return $ Just $ invalidRequest
+       -> (Call :~> m) -> (ReceiveAPI :~> m)
+router s f = nat $ \ case
+  (Receive v@(Object {})) -> simpleRouter f v
+  (Receive (Array a)) 
+    | V.null a -> return $ Just $ invalidRequest
+    | otherwise -> do
+          rs <- s (map (simpleRouter f) $ V.toList a)
+          case [ v | Just v <- rs ] of
+            [] -> return Nothing -- If there are no Response objects contained within the
+                                 -- Response array as it is to be sent to the client,
+                                 -- the server MUST NOT return an empty Array and should
+                                 -- return nothing at all.
+            vs -> return (Just (toJSON vs))
+  (Receive _) -> return $ Just $ invalidRequest
         
 -- The simple router handle a single call.
 simpleRouter :: forall m . MonadCatch m 
-       => (Call ~> m) 
+       => (Call :~> m) 
        -> Value -> m (Maybe Value)
-simpleRouter f v = case call <$> fromJSON v of
+simpleRouter (Nat f) v = case call <$> fromJSON v of
     Success m -> m
     Error _ ->  return $ Just $ invalidRequest
   where
@@ -96,17 +98,18 @@ simpleRouter f v = case call <$> fromJSON v of
 -- to send a message. Typically this is done using TCP/IP and HTTP,
 -- but we can simulate the connection here.
 
-transport :: (Monad f) => (ReceiveAPI ~> f) -> (SendAPI ~> f)
-transport f (Sync v)  = do
-  r <- f (Receive v)
-  case r of
-    Nothing -> fail "no result returned in transport"
-    Just v0 -> return v0
-transport f (Async v) = do
-  r <- f (Receive v)
-  case r of
-    Nothing -> return ()
-    Just v0 -> fail $ "unexpected result in transport: " ++ show v0
+transport :: (Monad f) => (ReceiveAPI :~> f) -> (SendAPI :~> f)
+transport f = nat $ \ case
+  Sync v -> do
+    r <- f # Receive v
+    case r of
+      Nothing -> fail "no result returned in transport"
+      Just v0 -> return v0
+  Async v -> do
+    r <- f # Receive v
+    case r of
+      Nothing -> return ()
+      Just v0 -> fail $ "unexpected result in transport: " ++ show v0
 
 
 errorResponse :: Int -> Text -> Value -> Value

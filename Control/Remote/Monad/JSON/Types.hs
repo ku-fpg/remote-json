@@ -45,6 +45,7 @@ module Control.Remote.Monad.JSON.Types (
   ) where
 
 import           Control.Applicative
+import           Control.Natural
 import           Control.Remote.Monad(RemoteMonad)
 
 import           Data.Aeson
@@ -165,7 +166,7 @@ data ReceiveAPI :: * -> * where
 deriving instance Show (ReceiveAPI a)
 
 -- | Session is a handle used for where to send a sequence of monadic commands.
-newtype Session = Session (forall a . RemoteMonad Notification Method a -> IO a) 
+newtype Session = Session (RemoteMonad Notification Method :~> IO) 
 
 
 -- | 'Args' follows the JSON-RPC spec: either a list of values,

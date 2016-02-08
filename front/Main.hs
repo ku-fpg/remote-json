@@ -1,7 +1,8 @@
-{-# LANGUAGE GADTs, OverloadedStrings #-}
+{-# LANGUAGE GADTs, OverloadedStrings, TypeOperators #-}
 
 module Main where
 
+import Control.Natural ((:~>), nat)
 import Control.Remote.Monad.JSON
 import Control.Remote.Monad.JSON.Router(transport,router,Call(..),methodNotFound)
 import Data.Aeson
@@ -28,8 +29,8 @@ main = do
 
 -- Simulate the JSON-RPC server
 
-network :: SendAPI a -> IO a
-network = transport $ router sequence $ remote
+network :: SendAPI :~> IO
+network = transport $ router sequence $ nat remote
   where
     remote :: Call a -> IO a
     remote (CallMethod "temperature" _)                 = return $ Number 42

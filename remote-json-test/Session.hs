@@ -20,18 +20,18 @@ import Control.Natural
 
 sessionBuilders :: [(SendAPI :~> IO) -> Session]
 sessionBuilders = 
-  [ \ (api :: SendAPI :~> IO) -> f ((t api) $$)
-  | f :: (SendAPI ~> IO) -> Session <- [ weakSession, strongSession, applicativeSession ]
+  [ f . t
+  | f :: (SendAPI :~> IO) -> Session <- [ weakSession, strongSession, applicativeSession ]
   , t <- [ id 
-         , \ api -> Nat $ traceSendAPI "send"  (api $$) 
+         , traceSendAPI "send"
          ]
   ]
 
 routerBuilders :: [(ReceiveAPI :~> IO)]
 routerBuilders = 
-  [ Nat $ (t1 (Nat $ router sequence (t2 (Nat $ remote) $$)) $$)
-  | t1 <- [ id, \ api -> Nat $ traceReceiveAPI "receive" (api $$) ]
-  , t2 <- [ id, \ api -> Nat $ traceCallAPI    "call"    (api $$) ]
+  [ t1 $ router sequence (t2 $ nat remote)
+  | t1 <- [ id, traceReceiveAPI "receive" ]
+  , t2 <- [ id, traceCallAPI    "call"    ]
   ]
   
 remote :: Call a -> IO a

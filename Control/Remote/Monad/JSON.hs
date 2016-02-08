@@ -40,6 +40,7 @@ import           Control.Monad
 import           Control.Monad.Fail() 
 import           Control.Remote.Monad.JSON.Types
 import           Control.Monad.Catch()
+import           Control.Natural
 
 import           Data.Aeson
 import           Data.Text(Text)
@@ -120,21 +121,21 @@ runApplicativeRPC f packet = do
         
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and sends each Notification and Method one at a time     
-weakSession :: (forall a . SendAPI a -> IO a) -> Session
-weakSession f = Session $ \ m -> runMonad (runWeakRPC f) m
+weakSession :: (SendAPI :~> IO) -> Session
+weakSession f = Session $ runMonad (nat $ runWeakRPC (run f))
 
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles Notifications together terminated by an optional Method
-strongSession :: (forall a . SendAPI a -> IO a) -> Session
-strongSession f = Session $ \ m -> runMonad (runStrongRPC f) m
+strongSession :: (SendAPI :~> IO) -> Session
+strongSession f = Session $ runMonad (nat $ runStrongRPC (run f))
 
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles together Notifications and Procedures that are used in
 -- Applicative calls
-applicativeSession :: (forall a . SendAPI a -> IO a) -> Session
-applicativeSession f = Session $ \ m -> runMonad (runApplicativeRPC f) m
+applicativeSession :: (SendAPI :~> IO) -> Session
+applicativeSession f = Session $ runMonad (nat $ runApplicativeRPC (run f))
 
 -- | Send RPC Notifications and Methods by using the given session
 send :: Session -> RPC a -> IO a
-send (Session f) (RPC m) = f m
+send (Session f) (RPC m) = f # m
 

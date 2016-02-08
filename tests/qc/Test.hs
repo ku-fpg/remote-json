@@ -22,8 +22,10 @@ import Data.Aeson (Value(..), toJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq, fromList)
 
+import Control.Natural (nat)
 import qualified Control.Remote.Monad.JSON as JSON
 import qualified Control.Remote.Monad.JSON.Router as R
+
 
 import Test.QuickCheck 
 import Test.QuickCheck.Instances ()
@@ -88,15 +90,15 @@ instance Arbitrary RemoteMonad where
   
 runWeakRPC :: RemoteMonad
 runWeakRPC = RemoteMonad "WeakPacket" 
-  $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (runCall tr ref))))
+  $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (nat $ runCall tr ref))))
 
 runStrongRPC :: RemoteMonad
 runStrongRPC = RemoteMonad "StrongPacket" 
-  $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (runCall tr ref))))
+  $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (nat $ runCall tr ref))))
 
 runApplicativeRPC :: RemoteMonad
 runApplicativeRPC = RemoteMonad "ApplicativePacket" 
-  $ \ tr ref -> JSON.send (JSON.applicativeSession (R.transport (R.router sequence (runCall tr ref))))
+  $ \ tr ref -> JSON.send (JSON.applicativeSession (R.transport (R.router sequence (nat $ runCall tr ref))))
 
 
 ----------------------------------------------------------------

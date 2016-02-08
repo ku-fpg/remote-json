@@ -12,7 +12,7 @@ import Control.Natural
 
 sessions :: [Session]
 sessions = 
-    [ sb (Nat $ transport (rb $$))
+    [ sb $ transport $ rb 
     | sb <- sessionBuilders
     , rb <- routerBuilders
     ]
