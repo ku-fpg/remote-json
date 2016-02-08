@@ -30,8 +30,8 @@ sessionBuilders =
 routerBuilders :: [(ReceiveAPI :~> IO)]
 routerBuilders = 
   [ Nat $ (t1 (Nat $ router sequence (t2 (Nat $ remote) $$)) $$)
-  | t1 <- [ id,\ api -> Nat $ traceReceiveAPI "receive" (api $$) ]
-  , t2 <- [ id, \ api -> Nat $ traceCallAPI     "call" (api $$) ]
+  | t1 <- [ id, \ api -> Nat $ traceReceiveAPI "receive" (api $$) ]
+  , t2 <- [ id, \ api -> Nat $ traceCallAPI    "call"    (api $$) ]
   ]
   
 remote :: Call a -> IO a
