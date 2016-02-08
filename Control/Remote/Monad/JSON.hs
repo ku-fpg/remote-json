@@ -78,24 +78,31 @@ runStrongRPC f packet = go  packet ([]++)
             go  (SP.Command n cs) ls =  go cs (ls . ([n] ++))
             go (SP.Done) ls = do
                              let toSend = (map(toJSON . NotificationCall) (ls [])) 
-                             f (Async $ toJSON toSend)
+                             () <- sendBatchAsync f toSend
                              return ()
             go (SP.Procedure m) ls = do 
                             let tid = 1
                             let toSend = (map (toJSON . NotificationCall) (ls []) ) ++ [toJSON $ mkMethodCall m tid]
-                            v <- f (Sync $ toJSON toSend)
-                            res <- parseReply v 
+                            res <- sendBatchSync f toSend
                             parseMethodResult m tid res
 
+
+sendBatchAsync :: (forall a . SendAPI a -> IO a) -> [Value] -> IO ()
+sendBatchAsync f []  = return ()             -- never send empty packet
+sendBatchAsync f [x] = f (Async x)           -- send singleton packet
+sendBatchAsync f xs  = f (Async (toJSON xs)) -- send batch packet
+
+-- There must be at least one command in the list
+sendBatchSync :: (forall a . SendAPI a -> IO a) -> [Value] -> IO (HM.HashMap IDTag Value)
+sendBatchSync f xs  = f (Sync (toJSON xs)) >>= parseReply -- send batch packet
 
 runApplicativeRPC :: (forall a . SendAPI a -> IO a) -> AP.ApplicativePacket Notification Method a -> IO a
 runApplicativeRPC f packet = do 
                    case AP.superCommand packet of
-                     Just a -> do f (Async $ toJSON $ ls0 [])
+                     Just a -> do () <- sendBatchAsync f (map toJSON $ ls0 [])
                                   return a
                      Nothing ->  do
-                           rr <- f (Sync $ toJSON $ ls0 [])
-                           rs <- parseReply rr
+                           rs <- sendBatchSync f (map toJSON $ ls0 [])
                            ff0 rs 
            
       where 
@@ -130,3 +137,4 @@ applicativeSession f = Session $ \ m -> runMonad (runApplicativeRPC f) m
 -- | Send RPC Notifications and Methods by using the given session
 send :: Session -> RPC a -> IO a
 send (Session f) (RPC m) = f m
+
