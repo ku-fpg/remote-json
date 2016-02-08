@@ -98,8 +98,8 @@ Test-Suite test-spec
 
 Test-Suite test-example
   type:       exitcode-stdio-1.0
-  hs-source-dirs: example
-  main-is:    Main.hs
+  hs-source-dirs: example, remote-json-test
+  main-is:    Unit.hs
   build-depends:    aeson                  >= 0.8 && < 0.10
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.3 && < 0.4
