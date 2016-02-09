@@ -39,7 +39,7 @@ traceSendAPI msg f = nat $ \ case
           liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
   (Async v) -> do
-          liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode v))
+          liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           () <- f # (Async v)
           liftIO $ putStrLn $ msg ++ "// No response"
           return ()
