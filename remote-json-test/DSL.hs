@@ -17,7 +17,7 @@ newtype DSL a = DSL (R.RPC a)
   deriving (Monad, Applicative, Functor)
 
 method :: FromJSON a => Text -> [Value] -> DSL a
-method nm args = (DSL . R.result) (R.method nm (R.List args))
+method nm args = DSL (R.method nm (R.List args))
 
 notification :: Text -> [Value] -> DSL ()
 notification nm = DSL . R.notification nm . R.List

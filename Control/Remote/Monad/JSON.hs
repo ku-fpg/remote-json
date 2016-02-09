@@ -30,8 +30,6 @@ module Control.Remote.Monad.JSON (
         strongSession,
         applicativeSession,
         SendAPI(..),
-        -- * Utility Functions
-        result,
         -- * Types
         Args(..)
   ) where
@@ -51,18 +49,12 @@ import qualified Control.Remote.Monad.Packet.Applicative as AP
 import qualified Data.HashMap.Strict as HM
 
 -- | Sets up a JSON-RPC method call with the function name and arguments                                  
-method :: Text -> Args -> RPC Value
+method :: FromJSON a => Text -> Args -> RPC a
 method nm args = RPC $ procedure $ Method nm args
 
 -- | Sets up a JSON-RPC notification call with the function name and arguments
 notification :: Text -> Args -> RPC ()
 notification nm args = RPC $ command $ Notification nm args
-
--- | Utility for parsing the result Value into a native Haskell value
-result :: (Monad m, FromJSON a) => m Value -> m a
-result m = do
-        Success r <- liftM fromJSON m
-        return r
 
 runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Notification Method a -> IO a
 runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))

@@ -23,9 +23,9 @@ import           Test (readTests, Test(..))
 
 f :: Call a -> IO a
 f (CallNotification nm args)    = runNotification (Notification nm args)
-f (CallMethod nm args) = runMethod (Method nm args)
+f (CallMethod nm args)          = runMethod (Method nm args)
   
-runMethod :: Method a -> IO a
+runMethod :: Method Value -> IO Value
 runMethod (Method "subtract" (List [Number a,Number b])) = return $ Number (a - b)
 runMethod (Method "subtract" (Named xs))
         | Just (Number a) <- lookup "minuend" xs

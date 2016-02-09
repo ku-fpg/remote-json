@@ -58,7 +58,7 @@ traceReceiveAPI msg f = nat $ \ (Receive v) -> do
 traceCallAPI :: MonadIO m => String -> (Call :~> m) -> (Call :~> m)
 traceCallAPI msg f = nat $ \ case
   p@(CallMethod nm args) -> do
-          let method = Method nm args
+          let method = Method nm args :: Method Value
           liftIO $ putStrLn $ msg ++ " method " ++ show method
           r <- f # p
           liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))

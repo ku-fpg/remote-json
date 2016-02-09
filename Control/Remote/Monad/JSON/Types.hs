@@ -67,14 +67,14 @@ deriving instance Show Notification
 
 -- | The basic procedure type
 data Method :: * -> * where
-    Method     :: Text -> Args -> Method Value
+    Method     :: FromJSON a => Text -> Args -> Method a
 
 deriving instance Show (Method a)
 
 -- | This is the non-GADT, JSON-serializable version of Notification and Method.
 data JSONCall :: * where
     NotificationCall :: Notification          -> JSONCall
-    MethodCall       :: Method Value -> Value -> JSONCall
+    MethodCall       :: ToJSON a => Method a -> Value -> JSONCall
 
 -- | Internal type of our tags
 type IDTag = Int
@@ -82,9 +82,9 @@ type IDTag = Int
 -- | Internal map of replies
 type Replies = HM.HashMap IDTag Value
 
--- | The GADT version of MethodCall
+-- | The non-GADT version of MethodCall
 mkMethodCall :: Method a -> IDTag -> JSONCall
-mkMethodCall m@(Method {}) tag = MethodCall m (Number (fromIntegral tag))
+mkMethodCall m@(Method nm args) tag = MethodCall (Method nm args :: Method Value) (Number (fromIntegral tag))
 
 -- | parseReply parses the reply JSON Value into Map of IDTag
 -- to specific result from remote method call.
@@ -109,7 +109,7 @@ parseReply v =  case fromJSON v of
                               ) HM.empty rs
 
 -- | parseMethodResult looks up a result in the finite map created from the result.
-parseMethodResult :: Monad m => Method a -> IDTag -> Replies -> m a
+parseMethodResult :: (Monad m) => Method a -> IDTag -> Replies -> m a
 parseMethodResult (Method {}) tag hm = case HM.lookup tag hm of
                       Just x ->  case fromJSON x of
                                    (Success  v) -> return v
@@ -138,7 +138,7 @@ instance ToJSON JSONCall where
 instance FromJSON JSONCall where           
   -- This douple-parses the params, an can be fixed
   parseJSON (Object o) = 
-    ((\ nm args tag -> MethodCall (Method nm args) tag)
+    ((\ nm args tag -> MethodCall (Method nm args :: Method Value) tag)
         <$> o .: "method"
         <*> (o .: "params" <|> return None)
         <*> o .: "id") <|>

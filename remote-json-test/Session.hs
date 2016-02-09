@@ -46,7 +46,7 @@ remoteCommand (Notification "say" args) = case args of
     _ ->  invalidParams
 remoteCommand _ = methodNotFound
 
-remoteProcedure :: Method a -> IO a
+remoteProcedure :: Method Value -> IO Value
 remoteProcedure (Method "temperature" _) = do
         t <- randomRIO (50, 100 :: Int)
         IO.putStrLn $ "temperature: " <> pack (show t)

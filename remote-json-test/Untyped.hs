@@ -11,7 +11,7 @@ untyped s = do
                 notification "say" (List [String "Hello, "])
                 notification "say" (List [String "World!"])
                 t <- method "temperature" None
-                return t
+                return (t :: Int)
         print t                    
         r <- send s $ method "fib" (List [Number 10])
-        print r
+        print (r :: Int)

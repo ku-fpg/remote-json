@@ -132,7 +132,7 @@ push :: A -> JSON.RPC ()
 push (A n) = JSON.notification "push" $ JSON.List [Number $ fromIntegral $ n]
 
 pop :: JSON.RPC (Maybe A)
-pop = fmap (fmap A) $ JSON.result $ JSON.method "pop" $ JSON.None
+pop = fmap (fmap A) $ JSON.method "pop" $ JSON.None
 
 ----------------------------------------------------------------
 

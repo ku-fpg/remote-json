@@ -71,10 +71,10 @@ say :: Text -> RPC ()
 say msg = notification "say" $ List [String msg]
 
 temperature :: RPC Int
-temperature = result $ method "temperature" None
+temperature = method "temperature" None
 
 uptime :: Text -> RPC Double
-uptime nm = result $ method "uptime" $ List [String nm]
+uptime nm = method "uptime" $ List [String nm]
 
 
 ------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ remoteCommand :: Notification -> IO ()
 remoteCommand (Notification "say" (List msg)) = print msg
 remoteCommand _ = methodNotFound
 
-remoteProcedure :: Method a -> IO a
+remoteProcedure :: Method Value -> IO Value
 remoteProcedure (Method "temperature" _) = do
         t <- randomRIO (50, 100 :: Int)
         IO.putStrLn $ "temperature: " <> pack (show t)

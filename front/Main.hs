@@ -14,7 +14,7 @@ say :: Text -> RPC ()
 say msg = notification "say" (List [String msg])
 
 temperature :: RPC Int
-temperature = result $ method "temperature" None
+temperature = method "temperature" None
 
 -- Our remote program
 

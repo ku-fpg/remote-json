@@ -73,12 +73,15 @@ simpleRouter (Nat f) v = case call <$> fromJSON v of
     Success m -> m
     Error _ ->  return $ Just $ invalidRequest
   where
+        serial :: Call a -> m Value
+        serial = undefined
+
         call :: JSONCall -> m (Maybe Value)
         call (MethodCall (Method nm args) tag) = (do
-                r <- f (CallMethod nm args)
+                r <- f (CallMethod nm args :: Call Value)
                 return $ Just $ object
                        [ "jsonrpc" .= ("2.0" :: Text)
-                       , "result" .= r
+                       , "result" .= toJSON r
                        , "id" .= tag
                        ]) `catches` 
                           [ Handler $ \ (_ :: MethodNotFound) -> 
