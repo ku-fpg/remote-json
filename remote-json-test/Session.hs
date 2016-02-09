@@ -7,7 +7,6 @@
 module Session (sessionBuilders,routerBuilders) where
 
 import Control.Remote.Monad.JSON
-import Control.Remote.Monad.JSON.Types -- TODO RM
 import Control.Remote.Monad.JSON.Trace
 import Control.Remote.Monad.JSON.Router
 import Data.Monoid
@@ -35,23 +34,16 @@ routerBuilders =
   ]
   
 remote :: Call a -> IO a
-remote (CallNotification nm args)    = remoteCommand (Notification nm args)
-remote (CallMethod nm args)          = remoteProcedure (Method nm args)
-
-remoteCommand :: Notification -> IO ()
-remoteCommand (Notification "say" args) = case args of
+remote (CallNotification "say" args) = case args of
     List [String txt] -> do
         IO.putStrLn $ "remote: " <> txt
         return ()
     _ ->  invalidParams
-remoteCommand _ = methodNotFound
-
-remoteProcedure :: Method Value -> IO Value
-remoteProcedure (Method "temperature" _) = do
+remote (CallMethod "temperature" _) = do
         t <- randomRIO (50, 100 :: Int)
         IO.putStrLn $ "temperature: " <> pack (show t)
         return $ toJSON t
-remoteProcedure (Method "fib" args) = case args of
+remote (CallMethod "fib" args) = case args of
     List [Number n] -> do
         case toBoundedInteger n of
           Just i -> return $ Number $ fromIntegral $ fib $ i
@@ -59,5 +51,5 @@ remoteProcedure (Method "fib" args) = case args of
     _ ->  invalidParams
   where fib :: Int -> Int
         fib n = if n < 2 then 1 else fib(n-1)+fib(n-2)
-remoteProcedure _ = methodNotFound
+remote _ = methodNotFound
 

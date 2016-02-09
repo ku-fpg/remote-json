@@ -16,37 +16,27 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 
 import           Control.Monad (when)
 import           Control.Remote.Monad.JSON.Router
-import           Control.Remote.Monad.JSON.Types -- for now
+import           Control.Remote.Monad.JSON
 import           Data.Attoparsec.ByteString
 import           System.Exit
 import           Test (readTests, Test(..))
 
 f :: Call a -> IO a
-f (CallNotification nm args)    = runNotification (Notification nm args)
-f (CallMethod nm args)          = runMethod (Method nm args)
-  
-runMethod :: Method Value -> IO Value
-runMethod (Method "subtract" (List [Number a,Number b])) = return $ Number (a - b)
-runMethod (Method "subtract" (Named xs))
+f (CallMethod "subtract" (List [Number a,Number b])) = return $ Number (a - b)
+f (CallMethod "subtract" (Named xs))
         | Just (Number a) <- lookup "minuend" xs
         , Just (Number b) <- lookup "subtrahend" xs
         = return $ Number (a - b)
-runMethod (Method "sum" args) = case args of
+f (CallMethod "sum" args) = case args of
       List xs -> return $ Number $ sum $ [ x | Number x <- xs ]
       _ -> invalidParams
-runMethod (Method "get_data" None) = return $ toJSON [String "hello", Number 5]
-runMethod (Method "error" (List [String msg])) = error $ show msg
-runMethod (Method "fail" (List [String msg])) = fail $ show msg
-runMethod _ = methodNotFound
-
-runNotification :: Notification -> IO ()
-runNotification (Notification "update" _) = return $ ()
-runNotification (Notification "notify_hello" _) = return $ ()
-runNotification (Notification "notify_sum" _)   = return $ ()
-runNotification _ = methodNotFound
-
--- Avoid skolem
---newtype C = C (forall a . JSONCall a  -> IO a)
+f (CallMethod "get_data" None) = return $ toJSON [String "hello", Number 5]
+f (CallMethod "error" (List [String msg])) = error $ show msg
+f (CallMethod "fail" (List [String msg])) = fail $ show msg
+f (CallNotification "update" _) = return $ ()
+f (CallNotification "notify_hello" _) = return $ ()
+f (CallNotification "notify_sum" _)   = return $ ()
+f _ = methodNotFound
 
 main = do
   tests <- readTests "tests/spec/Spec.txt"

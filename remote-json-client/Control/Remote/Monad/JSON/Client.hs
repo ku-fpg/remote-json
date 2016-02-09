@@ -11,7 +11,7 @@ module Control.Remote.Monad.JSON.Client
 import Control.Lens ((^.))
 import Control.Monad (void)
 import Control.Natural
-import Control.Remote.Monad.JSON.Types (SendAPI(..))
+import Control.Remote.Monad.JSON (SendAPI(..))
 import Data.Aeson
 import Network.Wreq
 

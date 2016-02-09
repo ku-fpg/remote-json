@@ -14,7 +14,6 @@ import Control.Remote.Monad.JSON.Client
 import Control.Remote.Monad.JSON.Router
 import Control.Remote.Monad.JSON.Server
 import Control.Remote.Monad.JSON.Trace
-import Control.Remote.Monad.JSON.Types
 import Control.Natural
 import Control.Concurrent (forkIO,threadDelay)
 
@@ -81,20 +80,18 @@ uptime nm = method "uptime" $ List [String nm]
 -- Server API
 
 remote :: Call a -> IO a
-remote (CallNotification nm args)    = remoteCommand (Notification nm args)
-remote (CallMethod nm args)          = remoteProcedure (Method nm args)
-
-remoteCommand :: Notification -> IO ()
-remoteCommand (Notification "say" (List msg)) = print msg
-remoteCommand _ = methodNotFound
-
-remoteProcedure :: Method Value -> IO Value
-remoteProcedure (Method "temperature" _) = do
+remote (CallNotification "say" args) = case args of
+    List [String txt] -> do
+        IO.putStrLn $ "remote: " <> txt
+        return ()
+    _ ->  invalidParams
+remote (CallMethod "temperature" _) = do
         t <- randomRIO (50, 100 :: Int)
         IO.putStrLn $ "temperature: " <> pack (show t)
         return $ toJSON t
-remoteProcedure (Method "uptime" (List [String nm])) = do
+remote (CallMethod "uptime" (List [String nm])) = do
         t <- randomRIO (50, 100 :: Double)
         IO.putStrLn $ nm <> "'s uptime: " <> pack (show t)
         return $ toJSON t
-remoteProcedure _ = methodNotFound
+remote _ = methodNotFound
+

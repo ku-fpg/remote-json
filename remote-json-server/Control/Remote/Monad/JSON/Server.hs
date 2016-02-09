@@ -9,7 +9,7 @@ module Control.Remote.Monad.JSON.Server
         , serverReceiveAPI
         ) where
 
-import Control.Remote.Monad.JSON.Types (ReceiveAPI(..))
+import Control.Remote.Monad.JSON.Router (ReceiveAPI(..))
 import           Control.Monad.IO.Class
 import Control.Natural
 import Data.Aeson()

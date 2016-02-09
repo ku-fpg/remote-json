@@ -5,7 +5,7 @@ module New
 
 import Control.Remote.Monad.Fresh
 import Control.Remote.Monad.JSON.Debug
-import           Control.Remote.Monad.JSON.Types (Args(..), SendAPI(..))
+import Control.Remote.Monad.JSON (Args(..), SendAPI(..))
 
 
 import  qualified         Data.Text as Text
