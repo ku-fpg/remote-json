@@ -30,7 +30,6 @@ module Control.Remote.Monad.JSON.Types (
     -- * Non-GADT combination of 'Notification' and 'Method'
   , JSONCall(..)
   , mkMethodCall
-  , IDTag
     -- * Sending and Receiving APIs
   , SendAPI(..)
   , ReceiveAPI(..)
@@ -39,6 +38,8 @@ module Control.Remote.Monad.JSON.Types (
     -- * Internal datatypes
   , ErrorMessage(..)
   , Response(..)
+  , IDTag
+  , Replies
     -- * Parsing Result
   , parseReply
   , parseMethodResult
@@ -78,6 +79,9 @@ data JSONCall :: * where
 -- | Internal type of our tags
 type IDTag = Int
 
+-- | Internal map of replies
+type Replies = HM.HashMap IDTag Value
+
 -- | The GADT version of MethodCall
 mkMethodCall :: Method a -> IDTag -> JSONCall
 mkMethodCall m@(Method {}) tag = MethodCall m (Number (fromIntegral tag))
@@ -85,7 +89,7 @@ mkMethodCall m@(Method {}) tag = MethodCall m (Number (fromIntegral tag))
 -- | parseReply parses the reply JSON Value into Map of IDTag
 -- to specific result from remote method call.
 -- This function supports both singleton and batch results
-parseReply :: Monad m => Value -> m (HM.HashMap IDTag Value)
+parseReply :: Monad m => Value -> m Replies
 parseReply v =  case fromJSON v of
                   Success (rs :: [Value]) -> return $ results rs
                   _ ->  return $ results [v]
@@ -97,17 +101,20 @@ parseReply v =  case fromJSON v of
                                     Success (Response v2 tag) -> 
                                           case fromJSON tag of
                                             Success t -> HM.insert t v2 acc
-                                            _    -> error "ParseReply : Unable to obtain tag "
-                                    _ -> error "Bad response in parseReply"
-                                                                       ) HM.empty rs
+                                            _         -> error "ParseReply : Unable to obtain tag "
+                                    Success (ErrorResponse msg tag) -> 
+                                          case fromJSON tag of
+                                            Success t -> HM.insert t (error $ show msg) acc
+                                            _         -> error "ParseReply : Unable to obtain error tag "
+                              ) HM.empty rs
 
 -- | parseMethodResult looks up a result in the finite map created from the result.
-parseMethodResult :: Monad m => Method a -> IDTag -> HM.HashMap IDTag Value -> m a
+parseMethodResult :: Monad m => Method a -> IDTag -> Replies -> m a
 parseMethodResult (Method {}) tag hm = case HM.lookup tag hm of
                       Just x ->  case fromJSON x of
                                    (Success  v) -> return v
-                                   _            -> error $ "bad packet in parseMethodResult:" ++ show x 
-                      Nothing -> error $ "Invalid id lookup in parseMethodResult:" ++ show tag
+                                   _            -> fail $ "bad packet in parseMethodResult:" ++ show x 
+                      Nothing -> fail $ "Invalid id lookup in parseMethodResult:" ++ show tag
 
 
 instance Show JSONCall where
