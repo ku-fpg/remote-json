@@ -24,7 +24,7 @@ library
   build-depends:       aeson                  >= 0.8  && < 0.12
                      , base                   >= 4    && < 5
                      , lens
-                     , wreq
+                     , wreq		      >= 0.4.1.0 && < 0.5
                      , natural-transformation >= 0.3  && < 0.4
                      , remote-json            == 0.2
   hs-source-dirs:      .
