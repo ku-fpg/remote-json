@@ -84,7 +84,7 @@ type Replies = HM.HashMap IDTag Value
 
 -- | The non-GADT version of MethodCall
 mkMethodCall :: Method a -> IDTag -> JSONCall
-mkMethodCall m@(Method nm args) tag = MethodCall (Method nm args :: Method Value) (Number (fromIntegral tag))
+mkMethodCall (Method nm args) tag = MethodCall (Method nm args :: Method Value) (Number (fromIntegral tag))
 
 -- | parseReply parses the reply JSON Value into Map of IDTag
 -- to specific result from remote method call.

@@ -34,7 +34,6 @@ module Control.Remote.Monad.JSON (
         Args(..)
   ) where
 
-import           Control.Monad
 import           Control.Monad.Fail() 
 import           Control.Remote.Monad.JSON.Types
 import           Control.Monad.Catch()
@@ -56,7 +55,7 @@ method nm args = RPC $ procedure $ Method nm args
 notification :: Text -> Args -> RPC ()
 notification nm args = RPC $ command $ Notification nm args
 
-runWeakRPC :: (forall a . SendAPI a -> IO a) -> WP.WeakPacket Notification Method a -> IO a
+runWeakRPC :: (SendAPI ~> IO) -> WP.WeakPacket Notification Method a -> IO a
 runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))
 runWeakRPC f (WP.Procedure m) = do
           let tid = 1
@@ -64,7 +63,7 @@ runWeakRPC f (WP.Procedure m) = do
           res <- parseReply v
           parseMethodResult m tid res 
 
-runStrongRPC :: (forall a . SendAPI a -> IO a) -> SP.StrongPacket Notification Method a ->  IO a
+runStrongRPC :: (SendAPI ~> IO) -> SP.StrongPacket Notification Method a ->  IO a
 runStrongRPC f packet = go  packet ([]++)
       where
             go :: forall a . SP.StrongPacket Notification Method a -> ([Notification]->[Notification]) -> IO a
@@ -80,16 +79,16 @@ runStrongRPC f packet = go  packet ([]++)
                             parseMethodResult m tid res
 
 
-sendBatchAsync :: (forall a . SendAPI a -> IO a) -> [Value] -> IO ()
-sendBatchAsync f []  = return ()             -- never send empty packet
+sendBatchAsync :: (SendAPI ~> IO) -> [Value] -> IO ()
+sendBatchAsync _ []  = return ()             -- never send empty packet
 sendBatchAsync f [x] = f (Async x)           -- send singleton packet
 sendBatchAsync f xs  = f (Async (toJSON xs)) -- send batch packet
 
 -- There must be at least one command in the list
-sendBatchSync :: (forall a . SendAPI a -> IO a) -> [Value] -> IO (HM.HashMap IDTag Value)
+sendBatchSync :: (SendAPI ~> IO) -> [Value] -> IO (HM.HashMap IDTag Value)
 sendBatchSync f xs  = f (Sync (toJSON xs)) >>= parseReply -- send batch packet
 
-runApplicativeRPC :: (forall a . SendAPI a -> IO a) -> AP.ApplicativePacket Notification Method a -> IO a
+runApplicativeRPC :: (SendAPI ~> IO) -> AP.ApplicativePacket Notification Method a -> IO a
 runApplicativeRPC f packet = do 
                    case AP.superCommand packet of
                      Just a -> do () <- sendBatchAsync f (map toJSON $ ls0 [])

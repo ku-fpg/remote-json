@@ -20,7 +20,7 @@ temperature = method "temperature" None
 
 main :: IO ()
 main = do
-  let s = weakSession $ network
+  let s = weakSession network
   t <- send s $ do
                 say "Hello, "
                 say "World!"
