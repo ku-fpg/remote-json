@@ -19,8 +19,8 @@ install:
 test::
 	make install
 	cabal test
-	(cd remote-json-test ; cabal install --only-dependencies --enable-tests --enable-benchmarks )
 	(cd remote-json-test ; cabal sandbox init --sandbox=../.cabal-sandbox )
+	(cd remote-json-test ; cabal install --only-dependencies --enable-tests --enable-benchmarks )
 	(cd remote-json-test ; cabal configure --enable-tests --enable-benchmarks -v2 )
 	(cd remote-json-test ; cabal test )
 
