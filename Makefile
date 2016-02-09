@@ -1,6 +1,6 @@
 install:
 	cabal sandbox init
-	cabal install --only-dependencies --enable-tests --enable-benchmarks
+	cabal install --only-dependencies --enable-tests --enable-benchmarks . remote-json-server/ remote-json-client/ remote-json-test/
 	cabal configure --enable-tests --enable-benchmarks -v2
 	-cabal sandbox hc-pkg unregister remote-json-client
 	-cabal sandbox hc-pkg unregister remote-json-server
