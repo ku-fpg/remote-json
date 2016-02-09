@@ -5,7 +5,7 @@ description:         JSON RPC, where you can using monads and applicative functo
                      to bundle JSON RPC requests and commands.
  .
  @
-    &#123;-&#35; LANGUAGE GADTs, OverloadedStrings &#35;-&#125;
+    &#123;-&#35; LANGUAGE GADTs, OverloadedStrings, TypeOperators &#35;-&#125;
     .
     module Main where
     .
@@ -20,7 +20,7 @@ description:         JSON RPC, where you can using monads and applicative functo
     say msg = notification &#34;say&#34; (List [String msg])
     .
     temperature :: RPC Int
-    temperature = result $ method &#34;temperature&#34; None
+    temperature = method &#34;temperature&#34; None
     .
     &#45;&#45; Our remote program
     .
@@ -35,8 +35,8 @@ description:         JSON RPC, where you can using monads and applicative functo
     .
     &#45;&#45; Simulate the JSON-RPC server
     .
-    network :: SendAPI a -> IO a
-    network = transport $ router sequence $ remote
+    network :: SendAPI a :~> IO a
+    network = transport $ router sequence $ nat remote
     &#32;&#32;where
     &#32;&#32;&#32;&#32;remote :: Call a -> IO a
     &#32;&#32;&#32;&#32;remote (CallMethod &#34;temperature&#34; _)                 = return $ Number 42
