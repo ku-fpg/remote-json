@@ -1,7 +1,7 @@
 name:                remote-json-client
 version:             0.2
 synopsis:            Web client wrapper for remote-json
-description:         Web client, using wreq, for the JSON RPC protcol.
+description:         Web client, using wreq, for the JSON RPC protocol.
 license:             BSD3
 license-file:        LICENSE
 author:              Justin Dawson and Andy Gill
