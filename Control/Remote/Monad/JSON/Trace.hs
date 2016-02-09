@@ -44,7 +44,7 @@ traceSendAPI msg f = nat $ \ case
           liftIO $ putStrLn $ msg ++ "// No response"
           return ()
 
--- | A tracing natural transformation morphism over the Transport API.
+-- | A tracing natural transformation morphism over the Receive API.
 traceReceiveAPI :: MonadIO m => String -> (ReceiveAPI :~> m) -> (ReceiveAPI :~> m)
 traceReceiveAPI msg f = nat $ \ (Receive v) -> do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
@@ -54,7 +54,7 @@ traceReceiveAPI msg f = nat $ \ (Receive v) -> do
             Just _ -> liftIO $ putStrLn $ msg ++ "<-- " ++ LT.unpack (decodeUtf8 (encode r))
           return r
 
--- | A tracing version of the 'Packet a -> m a' natural transformation morphism.
+-- | A tracing natural transformation morphism over the Call API.
 traceCallAPI :: MonadIO m => String -> (Call :~> m) -> (Call :~> m)
 traceCallAPI msg f = nat $ \ case
   p@(CallMethod nm args) -> do

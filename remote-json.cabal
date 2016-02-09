@@ -2,7 +2,7 @@ name:                remote-json
 version:             0.2
 synopsis:            Remote Monad implementation of the JSON RPC protocol
 description:         JSON RPC, where you can using monads and applicative functors
-                     to bundle JSON RPC requests and commands.
+                     to bundle JSON RPC methods and notifications.
  .
  @
     &#123;-&#35; LANGUAGE GADTs, OverloadedStrings, TypeOperators &#35;-&#125;
