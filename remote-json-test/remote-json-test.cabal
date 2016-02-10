@@ -34,7 +34,7 @@ Test-Suite remote-json-test-example
                   , random                 >= 1.1 && < 1.2
                   , remote-json            == 0.2
                   , remote-json-client     == 0.2
-                  , remote-json-server     == 0.2
+                  , remote-json-server     == 0.2.0.1
                   , scientific             >= 0.3 && < 0.4
                   , text                   >= 1.2 && < 1.3
   default-language:    Haskell2010
@@ -51,7 +51,7 @@ Test-Suite remote-json-blog-example
                   , random                 >= 1.1 && < 1.2
                   , remote-json            == 0.2
                   , remote-json-client     == 0.2
-                  , remote-json-server     == 0.2
+                  , remote-json-server     == 0.2.0.1
                   , scientific             >= 0.3 && < 0.4
                   , text                   >= 1.2 && < 1.3
   default-language:    Haskell2010
