@@ -1,5 +1,5 @@
 name:                remote-json-server
-version:             0.2
+version:             0.2.0.1
 synopsis:            Web server wrapper for remote-json
 description:         Web server, using scotty, for the JSON RPC protocol.
 license:             BSD3

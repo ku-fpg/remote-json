@@ -19,12 +19,6 @@ import Web.Scotty.Trans as T
 import Network.Wai.Handler.Warp (setPort)
 
 
--- | A way of building client 'SendAPI' support, using wreq.
-{-
-      serverReceiveAPI :: forall e (m :: * -> *) (t :: * -> *) a.
-                          (Foldable t, ToJSON a, MonadIO m, ScottyError e) =>
-                          (ReceiveAPI (Maybe Value) -> IO (t a)) -> ActionT e m ()
--}
 -- | Blocking function that listens on a specific port, to a specific path.
 serverReceiveAPI :: Int -> String -> (ReceiveAPI :~> IO) -> IO ()
 serverReceiveAPI port path f = scottyOpts opts $ post (literal path) $ scottyReceiveAPI f
