@@ -12,7 +12,8 @@ import Control.Lens ((^.))
 import Control.Monad (void)
 import Control.Natural
 import Control.Remote.Monad.JSON (SendAPI(..))
-import Data.Aeson
+import qualified Control.Remote.Monad.JSON.Transport  as T
+import Data.ByteString.Lazy (toStrict)
 import Network.Wreq
 
 -- Public APIs
@@ -21,9 +22,13 @@ import Network.Wreq
 
 -- | A way of building client 'SendAPI' support, using wreq.
 clientSendAPI :: String -> (SendAPI :~> IO)
-clientSendAPI url = nat $ \ case
-  Sync v -> do
-          r <- asJSON =<< post url (toJSON v)
-          return $ r ^. responseBody
-  Async v -> do
-          void $ post url (toJSON v)
+clientSendAPI url = T.transport f
+   where 
+      f = nat $ \ case
+        (T.Sync_bs v) -> do
+                    r <-  post url v
+                    return $ toStrict $ r ^. responseBody
+        (T.Async_bs v) -> do
+                    void $ post url v
+
+
