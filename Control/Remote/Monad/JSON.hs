@@ -38,6 +38,7 @@ import           Control.Monad.Fail()
 import           Control.Remote.Monad.JSON.Types
 import           Control.Monad.Catch()
 import           Control.Natural
+import           Control.Monad.State
 
 import           Data.Aeson
 import           Data.Text(Text)
@@ -98,18 +99,24 @@ runApplicativeRPC f packet = do
                            ff0 rs 
            
       where 
-            (ls0,ff0) = go packet 1 
+            (ls0,ff0) = evalState (go packet) 1 
 
-            go :: forall a . AP.ApplicativePacket Notification Method a -> IDTag
-               -> ([JSONCall]->[JSONCall], (HM.HashMap IDTag Value -> IO a))
-            go (AP.Pure a )         _tid = (id,  \ _ -> return a)
-            go (AP.Command aps n)    tid = (ls . ([(NotificationCall n)] ++), ff)
-                                      where  (ls,ff) = go aps tid 
-            go (AP.Procedure aps m ) tid = ( ls . ([mkMethodCall m tid]++)
-                                           , \ mp -> ff mp <*> parseMethodResult m tid mp
-                                           )
-                                      where (ls, ff) = go aps (tid + 1)
-        
+            go:: forall a . AP.ApplicativePacket Notification Method a 
+                  -> State IDTag ([JSONCall]->[JSONCall], HM.HashMap IDTag Value -> IO a)
+  
+            go (AP.Zip comb g h)    = do   
+                                     (ls1,g') <- go g
+                                     (ls2,h') <- go h
+                                     return ( (ls1 .ls2), \mp -> comb <$> g' mp <*> h' mp)
+            go (AP.Pure     a )  = return (([]++), \_ -> return a)
+            go (AP.Command   n)  = return (([NotificationCall n]++), \_ -> return ())
+            go (AP.Procedure m)  = do  
+                                       tid <-get  
+                                       put (succ tid)
+                                       return (([mkMethodCall m tid]++)
+                                        , \mp -> parseMethodResult m tid mp
+                                        )
+       
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and sends each Notification and Method one at a time     
 weakSession :: (SendAPI :~> IO) -> Session
