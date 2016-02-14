@@ -34,9 +34,7 @@ module Control.Remote.Monad.JSON (
         Args(..)
   ) where
 
-import           Control.Monad.Fail() 
 import           Control.Remote.Monad.JSON.Types
-import           Control.Monad.Catch()
 import           Control.Natural
 import           Control.Monad.State
 
@@ -48,7 +46,7 @@ import qualified Control.Remote.Monad.Packet.Strong as SP
 import qualified Control.Remote.Monad.Packet.Applicative as AP
 import qualified Data.HashMap.Strict as HM
 
--- | Sets up a JSON-RPC method call with the function name and arguments                                  
+-- | Sets up a JSON-RPC method call with the function name and arguments
 method :: FromJSON a => Text -> Args -> RPC a
 method nm args = RPC $ procedure $ Method nm args
 
@@ -62,7 +60,7 @@ runWeakRPC f (WP.Procedure m) = do
           let tid = 1
           v <- f (Sync (toJSON $ mkMethodCall m  tid))
           res <- parseReply v
-          parseMethodResult m tid res 
+          parseMethodResult m tid res
 
 runStrongRPC :: (SendAPI ~> IO) -> SP.StrongPacket Notification Method a ->  IO a
 runStrongRPC f packet = go  packet ([]++)
@@ -70,10 +68,10 @@ runStrongRPC f packet = go  packet ([]++)
             go :: forall a . SP.StrongPacket Notification Method a -> ([Notification]->[Notification]) -> IO a
             go  (SP.Command n cs) ls =  go cs (ls . ([n] ++))
             go (SP.Done) ls = do
-                             let toSend = (map(toJSON . NotificationCall) (ls [])) 
+                             let toSend = (map(toJSON . NotificationCall) (ls []))
                              () <- sendBatchAsync f toSend
                              return ()
-            go (SP.Procedure m) ls = do 
+            go (SP.Procedure m) ls = do
                             let tid = 1
                             let toSend = (map (toJSON . NotificationCall) (ls []) ) ++ [toJSON $ mkMethodCall m tid]
                             res <- sendBatchSync f toSend
@@ -90,35 +88,35 @@ sendBatchSync :: (SendAPI ~> IO) -> [Value] -> IO (HM.HashMap IDTag Value)
 sendBatchSync f xs  = f (Sync (toJSON xs)) >>= parseReply -- send batch packet
 
 runApplicativeRPC :: (SendAPI ~> IO) -> AP.ApplicativePacket Notification Method a -> IO a
-runApplicativeRPC f packet = do 
+runApplicativeRPC f packet = do
                    case AP.superCommand packet of
                      Just a -> do () <- sendBatchAsync f (map toJSON $ ls0 [])
                                   return a
                      Nothing ->  do
                            rs <- sendBatchSync f (map toJSON $ ls0 [])
-                           ff0 rs 
-           
-      where 
-            (ls0,ff0) = evalState (go packet) 1 
+                           ff0 rs
 
-            go:: forall a . AP.ApplicativePacket Notification Method a 
+      where
+            (ls0,ff0) = evalState (go packet) 1
+
+            go:: forall a . AP.ApplicativePacket Notification Method a
                   -> State IDTag ([JSONCall]->[JSONCall], HM.HashMap IDTag Value -> IO a)
-  
-            go (AP.Zip comb g h)    = do   
+
+            go (AP.Zip comb g h)    = do
                                      (ls1,g') <- go g
                                      (ls2,h') <- go h
                                      return ( (ls1 .ls2), \mp -> comb <$> g' mp <*> h' mp)
             go (AP.Pure     a )  = return (([]++), \_ -> return a)
             go (AP.Command   n)  = return (([NotificationCall n]++), \_ -> return ())
-            go (AP.Procedure m)  = do  
-                                       tid <-get  
+            go (AP.Procedure m)  = do
+                                       tid <-get
                                        put (succ tid)
                                        return (([mkMethodCall m tid]++)
                                         , \mp -> parseMethodResult m tid mp
                                         )
-       
+
 -- | Takes a function that handles the sending of Async and Sync messages,
--- and sends each Notification and Method one at a time     
+-- and sends each Notification and Method one at a time
 weakSession :: (SendAPI :~> IO) -> Session
 weakSession f = Session $ runMonad (nat $ runWeakRPC (run f))
 
