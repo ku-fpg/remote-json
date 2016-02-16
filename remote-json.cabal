@@ -76,7 +76,7 @@ library
                      , remote-monad           == 0.3
                      , text                   >= 1.2  && < 1.3
                      , transformers           >= 0.4  && < 0.6
-                     , unordered-containers   >= 0.2.5 && < 0.2.7
+                     , unordered-containers   >= 0.2.5 && < 0.2.8
                      , vector                 >= 0.11 && < 0.12
   hs-source-dirs:      .
   default-language:    Haskell2010
