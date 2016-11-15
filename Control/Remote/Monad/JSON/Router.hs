@@ -17,7 +17,7 @@ Stability:   Alpha
 Portability: GHC
 -}
 
-module Control.Remote.Monad.JSON.Router 
+module Control.Remote.Monad.JSON.Router
         ( -- * The server RPC router
           router
           -- * The datatype that represents what we receive and what we dispatch
@@ -27,9 +27,9 @@ module Control.Remote.Monad.JSON.Router
         , transport
         , methodNotFound
         , invalidParams
-        , parseError        
+        , parseError
         ) where
-        
+
 import           Control.Monad.Catch
 import           Control.Remote.Monad.JSON.Types
 import           Control.Natural
@@ -47,13 +47,13 @@ data Call :: * -> * where
 
 -- | "The Server MAY process a batch rpc call as a set of concurrent tasks,
 --    processing them in any order and with any width of parallelism."
---   We control this using the first argument.         
-router :: MonadCatch m 
+--   We control this using the first argument.
+router :: MonadCatch m
        => (forall a. [m a] -> m [a])
        -> (Call :~> m) -> (ReceiveAPI :~> m)
-router s f = nat $ \ case
+router s f = wrapNT $ \ case
   (Receive v@(Object {})) -> simpleRouter f v
-  (Receive (Array a)) 
+  (Receive (Array a))
     | V.null a -> return $ Just $ invalidRequest
     | otherwise -> do
           rs <- s (map (simpleRouter f) $ V.toList a)
@@ -64,12 +64,12 @@ router s f = nat $ \ case
                                  -- return nothing at all.
             vs -> return (Just (toJSON vs))
   (Receive _) -> return $ Just $ invalidRequest
-        
+
 -- The simple router handle a single call.
-simpleRouter :: forall m . MonadCatch m 
-       => (Call :~> m) 
+simpleRouter :: forall m . MonadCatch m
+       => (Call :~> m)
        -> Value -> m (Maybe Value)
-simpleRouter (Nat f) v = case call <$> fromJSON v of
+simpleRouter (NT f) v = case call <$> fromJSON v of
     Success m -> m
     Error _ ->  return $ Just $ invalidRequest
   where
@@ -80,16 +80,16 @@ simpleRouter (Nat f) v = case call <$> fromJSON v of
                        [ "jsonrpc" .= ("2.0" :: Text)
                        , "result" .= toJSON r
                        , "id" .= tag
-                       ]) `catches` 
-                          [ Handler $ \ (_ :: MethodNotFound) -> 
-                               return $ Just $ toJSON 
+                       ]) `catches`
+                          [ Handler $ \ (_ :: MethodNotFound) ->
+                               return $ Just $ toJSON
                                       $ errorResponse (-32601) "Method not found" tag
-                          , Handler $ \ (_ :: InvalidParams) -> 
-                               return $ Just $ toJSON 
+                          , Handler $ \ (_ :: InvalidParams) ->
+                               return $ Just $ toJSON
                                       $ errorResponse (-32602) "Invalid params" tag
                           , Handler $ \ (_ :: SomeException) ->
-                               return $ Just $ toJSON 
-                                      $ errorResponse (-32603) "Internal error" tag                                
+                               return $ Just $ toJSON
+                                      $ errorResponse (-32603) "Internal error" tag
                           ]
         call (NotificationCall (Notification nm args)) =
             (f (CallNotification nm args) >> return Nothing) `catchAll` \ _ -> return Nothing
@@ -99,7 +99,7 @@ simpleRouter (Nat f) v = case call <$> fromJSON v of
 -- but we can simulate the connection here.
 
 transport :: (Monad f) => (ReceiveAPI :~> f) -> (SendAPI :~> f)
-transport f = nat $ \ case
+transport f = wrapNT $ \ case
   Sync v -> do
     r <- f # Receive v
     case r of
@@ -125,7 +125,7 @@ invalidRequest = errorResponse (-32600) "Invalid Request" Null
 parseError :: Value
 parseError = errorResponse (-32700) "Parse error" Null
 
-data MethodNotFound = MethodNotFound 
+data MethodNotFound = MethodNotFound
   deriving (Show, Typeable)
 
 instance Exception MethodNotFound
@@ -135,7 +135,7 @@ instance Exception MethodNotFound
 methodNotFound :: MonadThrow m => m a
 methodNotFound = throwM $ MethodNotFound
 
-data InvalidParams = InvalidParams 
+data InvalidParams = InvalidParams
   deriving (Show, Typeable)
 
 instance Exception InvalidParams

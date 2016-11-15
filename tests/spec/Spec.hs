@@ -42,10 +42,10 @@ main = do
   tests <- readTests "tests/spec/Spec.txt"
   let testWith i testName (Right v_req) v_expect = do
              putStrLn $ ("--> " ++) $ LT.unpack $ decodeUtf8 $ encode v_req
-             r <- router sequence (nat f) # (Receive v_req)
+             r <- router sequence (wrapNT f) # (Receive v_req)
              showResult i testName r v_expect
       testWith i testName (Left bad) v_expect = do
-             putStr "--> " 
+             putStr "--> "
              TIO.putStr $ bad
              let r = Just $ parseError
              showResult i testName r v_expect
@@ -54,19 +54,19 @@ main = do
       showResult i testName (Just v_resp) v_expect = do
              putStrLn $ ("<-- " ++) $ LT.unpack $ decodeUtf8 $ encode v_resp
              testResult i testName (Just v_resp) v_expect
-             
+
       testResult i testName r v_expect = do
-             r <- if (r /= v_expect) 
+             r <- if (r /= v_expect)
                   then do putStrLn $ ("exp " ++) $ LT.unpack $ decodeUtf8 $ encode v_expect
                           return $ Just (i,testName)
                   else return Nothing
              putStrLn ""
              return r
 
-    
-  res <- sequence 
+
+  res <- sequence
         [ do when (i == 1) $ do
-                putStr "#" 
+                putStr "#"
                 TIO.putStrLn $ testName
              testWith i testName v_req v_expect
         |  (Test testName subTests) <- tests
@@ -75,7 +75,7 @@ main = do
   let failing = [ x | Just x <- res ]
   if (null failing)
   then putStrLn $ "ALL " ++ show (length res) ++ " TEST(S) PASS"
-  else do 
+  else do
      putStrLn $ show (length failing) ++ " test(s) failed"
      putStrLn $ unlines $ map show failing
      exitFailure

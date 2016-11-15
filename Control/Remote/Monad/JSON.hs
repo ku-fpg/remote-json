@@ -118,18 +118,18 @@ runApplicativeRPC f packet = do
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and sends each Notification and Method one at a time
 weakSession :: (SendAPI :~> IO) -> Session
-weakSession f = Session $ runMonad (nat $ runWeakRPC (run f))
+weakSession f = Session $ runMonad (wrapNT $ runWeakRPC (unwrapNT f))
 
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles Notifications together terminated by an optional Method
 strongSession :: (SendAPI :~> IO) -> Session
-strongSession f = Session $ runMonad (nat $ runStrongRPC (run f))
+strongSession f = Session $ runMonad (wrapNT $ runStrongRPC (unwrapNT f))
 
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles together Notifications and Procedures that are used in
 -- Applicative calls
 applicativeSession :: (SendAPI :~> IO) -> Session
-applicativeSession f = Session $ runMonad (nat $ runApplicativeRPC (run f))
+applicativeSession f = Session $ runMonad (wrapNT $ runApplicativeRPC (unwrapNT f))
 
 -- | Send RPC Notifications and Methods by using the given session
 send :: Session -> RPC a -> IO a

@@ -1,5 +1,5 @@
 name:                remote-json-server
-version:             0.2.0.1
+version:             0.2.1
 synopsis:            Web server wrapper for remote-json
 description:         Web server, using scotty, for the JSON RPC protocol.
 license:             BSD3
@@ -21,10 +21,10 @@ library
   exposed-modules:     Control.Remote.Monad.JSON.Server
 
   -- other-modules:
-  build-depends:       aeson                  >= 0.8   && < 0.12
+  build-depends:       aeson                  >= 0.8   && < 1.1
                      , base                   >= 4     && < 5
                      , data-default-class     >= 0.0.1 && < 0.2
-                     , natural-transformation >= 0.3.1 && < 0.4
+                     , natural-transformation >= 0.4   && < 0.5
                      , remote-json            >= 0.2   && < 0.3
                      , warp                   >= 3.2   && < 3.3
                      , scotty                 >= 0.10

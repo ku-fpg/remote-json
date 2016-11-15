@@ -6,8 +6,8 @@
 
 
 module Main where
-        
-import Session       
+
+import Session
 
 import Control.Remote.Monad.JSON
 import Control.Remote.Monad.JSON.Client
@@ -26,7 +26,7 @@ import System.Random
 import Data.Scientific as Scientific
 
 main = do
-  forkIO $ serverReceiveAPI 4001 "/wobble" $ router sequence $ nat remote
+  forkIO $ serverReceiveAPI 4001 "/wobble" $ router sequence $ wrapNT remote
   threadDelay (1000 * 1000)
 
   putStrLn "Weak Bundle"
@@ -38,7 +38,7 @@ main = do
           u <- uptime "orange"
           return (t,u)
   print t
-  print u  
+  print u
 
   putStrLn "Strong Bundle"
   let s = strongSession (traceSendAPI "" $ clientSendAPI "http://localhost:4001/wobble")
@@ -49,19 +49,19 @@ main = do
           u <- uptime "orange"
           return (t,u)
   print t
-  print u  
+  print u
 
   putStrLn "Ap Bundle"
   let s = applicativeSession (traceSendAPI "" $ clientSendAPI "http://localhost:4001/wobble")
-  (t,u) <- send s $ 
+  (t,u) <- send s $
           say "Hello, " *>
-          (pure (,) <*> temperature   
+          (pure (,) <*> temperature
                     <*  say "World!"
                     <*> uptime "orange")
   print t
-  print u  
+  print u
 
-     
+
 
 ------------------------------------------------------------------------------
 -- Client API

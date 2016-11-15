@@ -18,21 +18,21 @@ import Data.Scientific as Scientific
 import Control.Natural
 
 sessionBuilders :: [(SendAPI :~> IO) -> Session]
-sessionBuilders = 
+sessionBuilders =
   [ f . t
   | f :: (SendAPI :~> IO) -> Session <- [ weakSession, strongSession, applicativeSession ]
-  , t <- [ id 
+  , t <- [ id
          , traceSendAPI "send"
          ]
   ]
 
 routerBuilders :: [(ReceiveAPI :~> IO)]
-routerBuilders = 
-  [ t1 $ router sequence (t2 $ nat remote)
+routerBuilders =
+  [ t1 $ router sequence (t2 $ wrapNT remote)
   | t1 <- [ id, traceReceiveAPI "receive" ]
   , t2 <- [ id, traceCallAPI    "call"    ]
   ]
-  
+
 remote :: Call a -> IO a
 remote (CallNotification "say" args) = case args of
     List [String txt] -> do

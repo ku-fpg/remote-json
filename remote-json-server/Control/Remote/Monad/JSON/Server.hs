@@ -27,7 +27,7 @@ serverReceiveAPI port path f = scottyOpts opts $ post (literal path) $ scottyRec
 -- | Build the 'ActionT' action for Scotty.
 scottyReceiveAPI :: (ScottyError e, MonadIO m)
                  => (ReceiveAPI :~> IO) -> ActionT e m ()
-scottyReceiveAPI (Nat f) = do
+scottyReceiveAPI (NT f) = do
                 d <- jsonData
                 r <- liftIO $ f $ Receive $ d
                 case r of

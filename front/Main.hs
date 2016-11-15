@@ -2,7 +2,7 @@
 
 module Main where
 
-import Control.Natural ((:~>), nat)
+import Control.Natural ((:~>), wrapNT)
 import Control.Remote.Monad.JSON
 import Control.Remote.Monad.JSON.Router(transport,router,Call(..),methodNotFound)
 import Data.Aeson
@@ -25,12 +25,12 @@ main = do
                 say "Hello, "
                 say "World!"
                 temperature
-  print t                    
+  print t
 
 -- Simulate the JSON-RPC server
 
 network :: SendAPI :~> IO
-network = transport $ router sequence $ nat remote
+network = transport $ router sequence $ wrapNT remote
   where
     remote :: Call a -> IO a
     remote (CallMethod "temperature" _)                 = return $ Number 42

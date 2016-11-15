@@ -18,7 +18,7 @@ Portability: GHC
 -}
 
 module Control.Remote.Monad.JSON.Trace where
-        
+
 import           Control.Remote.Monad.JSON.Types
 import           Control.Remote.Monad.JSON.Router (Call(..))
 import           Control.Monad.IO.Class(MonadIO,liftIO)
@@ -32,7 +32,7 @@ import           Data.Text.Lazy.Encoding(decodeUtf8)
 
 -- | A tracing natural transformation morphism over the Session API.
 traceSendAPI :: MonadIO m => String -> (SendAPI :~> m) -> (SendAPI :~> m)
-traceSendAPI msg f = nat $ \ case
+traceSendAPI msg f = wrapNT $ \ case
   (Sync v) -> do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f # (Sync v)
@@ -46,7 +46,7 @@ traceSendAPI msg f = nat $ \ case
 
 -- | A tracing natural transformation morphism over the Receive API.
 traceReceiveAPI :: MonadIO m => String -> (ReceiveAPI :~> m) -> (ReceiveAPI :~> m)
-traceReceiveAPI msg f = nat $ \ (Receive v) -> do
+traceReceiveAPI msg f = wrapNT $ \ (Receive v) -> do
           liftIO $ putStrLn $ msg ++ "--> " ++ LT.unpack (decodeUtf8 (encode v))
           r <- f # (Receive v)
           case r of
@@ -56,7 +56,7 @@ traceReceiveAPI msg f = nat $ \ (Receive v) -> do
 
 -- | A tracing natural transformation morphism over the Call API.
 traceCallAPI :: MonadIO m => String -> (Call :~> m) -> (Call :~> m)
-traceCallAPI msg f = nat $ \ case
+traceCallAPI msg f = wrapNT $ \ case
   p@(CallMethod nm args) -> do
           let method = Method nm args :: Method Value
           liftIO $ putStrLn $ msg ++ " method " ++ show method

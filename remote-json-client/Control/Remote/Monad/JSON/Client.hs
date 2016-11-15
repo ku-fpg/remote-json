@@ -17,11 +17,11 @@ import Network.Wreq
 
 -- Public APIs
 -- http://www.raboof.com/projects/jayrock/demo.ashx
--- https://s1.ripple.com:51234/ 
+-- https://s1.ripple.com:51234/
 
 -- | A way of building client 'SendAPI' support, using wreq.
 clientSendAPI :: String -> (SendAPI :~> IO)
-clientSendAPI url = nat $ \ case
+clientSendAPI url = wrapNT $ \ case
   Sync v -> do
           r <- asJSON =<< post url (toJSON v)
           return $ r ^. responseBody

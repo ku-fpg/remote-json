@@ -22,12 +22,12 @@ import Data.Aeson (Value(..), toJSON)
 import Data.Foldable (toList)
 import Data.Sequence (Seq, fromList)
 
-import Control.Natural (nat)
+import Control.Natural (wrapNT)
 import qualified Control.Remote.Monad.JSON as JSON
 import qualified Control.Remote.Monad.JSON.Router as R
 
 
-import Test.QuickCheck 
+import Test.QuickCheck
 import Test.QuickCheck.Instances ()
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
@@ -43,7 +43,7 @@ main = defaultMain testProperties
 testProperties :: TestTree
 testProperties = testGroup "QuickCheck remote monad properties"
     [ testProperty "push works remotely"                  $ prop_push
-    , testProperty "pop works remotely"                   $ prop_pop 
+    , testProperty "pop works remotely"                   $ prop_pop
     , testProperty "compare two remote monad strategies"  $ testRunRemoteMonad
     , testProperty "send (m >>= k) = send m >>= send . k" $ testRemoteMonadBindLaw
     , testProperty "send (return a) = return a"           $ testRemoteMonadReturnLaw
@@ -63,7 +63,7 @@ runCall tr ref (R.CallMethod "pop" _) = do
     modifyIORef tr (("pop") :)
     stack <- readIORef ref
     res <- case stack of
-      [] -> return Nothing 
+      [] -> return Nothing
       (x:xs) -> do
           writeIORef ref xs
           modifyIORef tr ((show x) :)
@@ -78,27 +78,27 @@ data RemoteMonad = RemoteMonad String (forall a . IORef [String] -> IORef [A] ->
 
 instance Show RemoteMonad where
   show (RemoteMonad msg _) = "Remote Monad: " ++ msg
-  
+
 instance Arbitrary RemoteMonad where
-  arbitrary = elements 
+  arbitrary = elements
     [ runWeakRPC
     , runStrongRPC
     , runApplicativeRPC
     ]
 
 --- This is a complete enumeration of ways of building remote monads
-  
+
 runWeakRPC :: RemoteMonad
-runWeakRPC = RemoteMonad "WeakPacket" 
-  $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (nat $ runCall tr ref))))
+runWeakRPC = RemoteMonad "WeakPacket"
+  $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (wrapNT $ runCall tr ref))))
 
 runStrongRPC :: RemoteMonad
-runStrongRPC = RemoteMonad "StrongPacket" 
-  $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (nat $ runCall tr ref))))
+runStrongRPC = RemoteMonad "StrongPacket"
+  $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (wrapNT $ runCall tr ref))))
 
 runApplicativeRPC :: RemoteMonad
-runApplicativeRPC = RemoteMonad "ApplicativePacket" 
-  $ \ tr ref -> JSON.send (JSON.applicativeSession (R.transport (R.router sequence (nat $ runCall tr ref))))
+runApplicativeRPC = RemoteMonad "ApplicativePacket"
+  $ \ tr ref -> JSON.send (JSON.applicativeSession (R.transport (R.router sequence (wrapNT $ runCall tr ref))))
 
 
 ----------------------------------------------------------------
@@ -108,7 +108,7 @@ data DeviceM = Device (IORef [String]) (IORef [A]) (forall a . JSON.RPC a -> IO 
 sendM :: DeviceM -> JSON.RPC a -> IO a
 sendM (Device _ _ f) = f
 
-newDevice :: [A] 
+newDevice :: [A]
           -> RemoteMonad
           -> IO DeviceM
 newDevice xs (RemoteMonad _ f) = do
@@ -124,7 +124,7 @@ cmpDevices d1 d2 = (==) <$> readDevice d1 <*> readDevice d2
 
 -- returns backwards, but is for cmp or debugging anyway
 traceDevice :: DeviceM -> IO [String]
-traceDevice (Device tr _ _) = readIORef tr 
+traceDevice (Device tr _ _) = readIORef tr
 
 ----------------------------------------------------------------
 
@@ -155,8 +155,8 @@ instance Show (RemoteBind a) where
 ----------------------------------------------------------------
 
 arbitraryRemoteMonad' :: (CoArbitrary a, Arbitrary a) => [Gen (JSON.RPC a)] -> Int -> Gen (JSON.RPC a)
-arbitraryRemoteMonad' base 0 = oneof base 
-arbitraryRemoteMonad' base n = frequency 
+arbitraryRemoteMonad' base 0 = oneof base
+arbitraryRemoteMonad' base n = frequency
   [ (1 , oneof base)
   , (1 , do RemoteBind m k <- arbitraryBind (arbitraryRemoteMonad' base) n
             return (m >>= k)
@@ -203,10 +203,10 @@ arbitraryBind f n = oneof
        k  <- promote (`coarbitrary` f (n `div` 2))  -- look for a better way of doing this
        return $ RemoteBind m k
   , do m <- arbitraryRemoteMonadMaybeA (n `div` 2)
-       k  <- promote (`coarbitrary` f (n `div` 2)) 
+       k  <- promote (`coarbitrary` f (n `div` 2))
        return $ RemoteBind m k
   , do m <- arbitraryRemoteMonadA (n `div` 2)
-       k  <- promote (`coarbitrary` f (n `div` 2)) 
+       k  <- promote (`coarbitrary` f (n `div` 2))
        return $ RemoteBind m k
   ]
 
@@ -242,10 +242,10 @@ testRunRemoteMonad runMe1 runMe2 (Remote m) xs = monadicIO $ do
     r2   <- run $ sendM dev2 m
     tr2  <- run $ traceDevice dev2
     st2  <- run $ readDevice dev2
-    
+
 --    monitor $ collect $ (tr1,tr2)
     assert (r1 == r2 && tr1 == tr2 && st1 == st2)
-    
+
 -- Check remote monad laws
 testRemoteMonadBindLaw :: RemoteMonad -> [A] -> Property
 testRemoteMonadBindLaw runMe xs = monadicIO $ do
