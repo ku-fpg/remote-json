@@ -28,7 +28,7 @@ Test-Suite remote-json-test-example
   type:       exitcode-stdio-1.0
   hs-source-dirs: .
   main-is:    System.hs
-  build-depends:    aeson                  >= 0.8 && < 1.1
+  build-depends:    aeson                  >= 0.8 && < 1.2
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.4 && < 0.5
                   , random                 >= 1.1 && < 1.2
@@ -45,7 +45,7 @@ Test-Suite remote-json-blog-example
   type:       exitcode-stdio-1.0
   hs-source-dirs: .
   main-is:    Blog.hs
-  build-depends:    aeson                  >= 0.8 && < 1.1
+  build-depends:    aeson                  >= 0.8 && < 1.2
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.4 && < 0.5
                   , random                 >= 1.1 && < 1.2

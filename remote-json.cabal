@@ -68,7 +68,7 @@ library
   other-modules:
                        Control.Remote.Monad.JSON.Types
 
-  build-depends:       aeson                  >= 0.8  && < 1.1
+  build-depends:       aeson                  >= 0.8  && < 1.2
                      , base                   >= 4    && < 5
                      , exceptions             >= 0.8  && < 0.9
                      , mtl                    >= 2.2.1 && < 2.3
@@ -87,7 +87,7 @@ Test-Suite test-spec
   type:       exitcode-stdio-1.0
   hs-source-dirs: tests/spec
   main-is:    Spec.hs
-  build-depends:   aeson                  >= 0.8 && < 1.1
+  build-depends:   aeson                  >= 0.8 && < 1.2
                  , attoparsec             >= 0.13 && < 0.14
                  , base                   >= 4 && < 5
                  , bytestring             >= 0.10 && < 0.11
@@ -103,7 +103,7 @@ Test-Suite test-example
   type:       exitcode-stdio-1.0
   hs-source-dirs: remote-json-test
   main-is:    Unit.hs
-  build-depends:    aeson                  >= 0.8 && < 1.1
+  build-depends:    aeson                  >= 0.8 && < 1.2
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.4 && < 0.5
                   , random                 >= 1.1 && < 1.2
@@ -118,7 +118,7 @@ Test-Suite front-example
   type:       exitcode-stdio-1.0
   hs-source-dirs: front
   main-is:    Main.hs
-  build-depends:    aeson                  >= 0.8 && < 1.1
+  build-depends:    aeson                  >= 0.8 && < 1.2
                   , base                   >= 4 && < 5
                   , natural-transformation >= 0.4 && < 0.5
                   , remote-json            >= 0.2 && < 0.3
@@ -131,7 +131,7 @@ Test-Suite front-example
 test-suite remote-json-properties
   type:                exitcode-stdio-1.0
   main-is:             Test.hs
-  build-depends:       aeson                  >= 0.8 && < 1.1
+  build-depends:       aeson                  >= 0.8 && < 1.2
                      , base                   >= 4.7 && < 5
                      , containers             >= 0.1 && < 0.6
                      , natural-transformation >= 0.4 && < 0.5
