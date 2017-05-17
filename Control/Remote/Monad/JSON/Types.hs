@@ -1,15 +1,15 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TypeOperators              #-}
 
 {-|
 Module:      Control.Remote.Monad.JSON where
@@ -24,8 +24,7 @@ module Control.Remote.Monad.JSON.Types (
     -- * RPC Monad
     RPC(..)
     -- * 'Notification', 'Method' and 'Args'
-  , Notification(..)
-  , Method(..)
+  , Prim(..)
   , Args(..)
     -- * Non-GADT combination of 'Notification' and 'Method'
   , JSONCall(..)
@@ -47,34 +46,33 @@ module Control.Remote.Monad.JSON.Types (
 
 import           Control.Applicative
 import           Control.Natural
-import           Control.Remote.Monad(RemoteMonad)
+import           Control.Remote.Monad    (KnownResult (..), RemoteMonad)
 
 import           Data.Aeson
 import           Data.Aeson.Types
-import qualified Data.HashMap.Strict as HM
-import           Data.Text(Text, unpack)
+import qualified Data.HashMap.Strict     as HM
+import           Data.Text               (Text, unpack)
 
-import qualified Data.Text.Lazy as LT
-import           Data.Text.Lazy.Encoding(decodeUtf8)
-import qualified Data.Vector as V
+import qualified Data.Text.Lazy          as LT
+import           Data.Text.Lazy.Encoding (decodeUtf8)
+import qualified Data.Vector             as V
 
 
--- | The basic command type
-data Notification :: * where
-    Notification :: Text -> Args -> Notification
+data Prim :: * -> * where
+  Notification ::               Text -> Args -> Prim ()
+  Method       :: FromJSON a => Text -> Args -> Prim a
 
-deriving instance Show Notification
 
--- | The basic procedure type
-data Method :: * -> * where
-    Method     :: FromJSON a => Text -> Args -> Method a
+instance KnownResult Prim where
+  knownResult (Notification {}) = Just ()
+  knownResult (Method {})       = Nothing
 
-deriving instance Show (Method a)
 
--- | This is the non-GADT, JSON-serializable version of Notification and Method.
+deriving instance Show (Prim a)
+
 data JSONCall :: * where
-    NotificationCall :: Notification          -> JSONCall
-    MethodCall       :: ToJSON a => Method a -> Value -> JSONCall
+  NotificationCall :: Prim a             -> JSONCall
+  MethodCall       :: ToJSON a => Prim a -> Value -> JSONCall
 
 -- | Internal type of our tags
 type IDTag = Int
@@ -83,8 +81,9 @@ type IDTag = Int
 type Replies = HM.HashMap IDTag Value
 
 -- | The non-GADT version of MethodCall
-mkMethodCall :: Method a -> IDTag -> JSONCall
-mkMethodCall (Method nm args) tag = MethodCall (Method nm args :: Method Value) (Number (fromIntegral tag))
+mkMethodCall :: Prim a -> IDTag -> JSONCall
+mkMethodCall (Method nm args) tag = MethodCall (Method nm args :: Prim Value) (Number (fromIntegral tag))
+mkMethodCall (Notification nm args) tag = MethodCall (Method nm args :: Prim ()) (Number (fromIntegral tag))
 
 -- | parseReply parses the reply JSON Value into Map of IDTag
 -- to specific result from remote method call.
@@ -93,28 +92,31 @@ parseReply :: Monad m => Value -> m Replies
 parseReply v =  case fromJSON v of
                   Success (rs :: [Value]) -> return $ results rs
                   _ ->  return $ results [v]
-                      
+
                  where
                    results :: [Value] -> HM.HashMap IDTag Value
                    results rs = foldl (\ acc v1 ->
                                  case fromJSON v1 of
-                                    Success (Response v2 tag) -> 
+                                    Success (Response v2 tag) ->
                                           case fromJSON tag of
                                             Success t -> HM.insert t v2 acc
                                             _         -> error "ParseReply : Unable to obtain tag "
-                                    Success (ErrorResponse msg tag) -> 
+                                    Success (ErrorResponse msg tag) ->
                                           case fromJSON tag of
                                             Success t -> HM.insert t (error $ show msg) acc
                                             _         -> error "ParseReply : Unable to obtain error tag "
+                                    Error s  -> error $ "ParseReply: An error occured: " ++ s
+
                               ) HM.empty rs
 
 -- | parseMethodResult looks up a result in the finite map created from the result.
-parseMethodResult :: (Monad m) => Method a -> IDTag -> Replies -> m a
+parseMethodResult :: (Monad m) => Prim a -> IDTag -> Replies -> m a
 parseMethodResult (Method {}) tag hm = case HM.lookup tag hm of
                       Just x ->  case fromJSON x of
                                    (Success  v) -> return v
-                                   _            -> fail $ "bad packet in parseMethodResult:" ++ show x 
+                                   _            -> fail $ "bad packet in parseMethodResult:" ++ show x
                       Nothing -> fail $ "Invalid id lookup in parseMethodResult:" ++ show tag
+parseMethodResult (Notification{}) _tag _hm = return ()
 
 
 instance Show JSONCall where
@@ -135,23 +137,23 @@ instance ToJSON JSONCall where
           ] ++ case args of
                  None -> []
                  _    -> [ "params" .= args ]
-instance FromJSON JSONCall where           
+instance FromJSON JSONCall where
   -- This douple-parses the params, an can be fixed
-  parseJSON (Object o) = 
-    ((\ nm args tag -> MethodCall (Method nm args :: Method Value) tag)
+  parseJSON (Object o) =
+    ((\ nm args tag -> MethodCall (Method nm args :: Prim Value) tag)
         <$> o .: "method"
         <*> (o .: "params" <|> return None)
         <*> o .: "id") <|>
     ((\ nm args -> NotificationCall (Notification nm args))
         <$> o .: "method"
         <*> (o .: "params" <|> return None))
-        
-  parseJSON _ = fail "not an Object when parsing a JSONCall Value"  
+
+  parseJSON _ = fail "not an Object when parsing a JSONCall Value"
 
 -- | The JSON RPC remote monad
-newtype RPC a = RPC (RemoteMonad Notification Method a)
+newtype RPC a = RPC (RemoteMonad Prim a)
   deriving (Functor, Applicative, Monad)
-  
+
 -- | The client-side send function API.
 -- The user provides a way of dispatching this, to implement a client.
 -- An example of this using wreq is found in remote-json-client
@@ -173,7 +175,7 @@ data ReceiveAPI :: * -> * where
 deriving instance Show (ReceiveAPI a)
 
 -- | Session is a handle used for where to send a sequence of monadic commands.
-newtype Session = Session (RemoteMonad Notification Method :~> IO) 
+newtype Session = Session (RemoteMonad Prim :~> IO)
 
 
 -- | 'Args' follows the JSON-RPC spec: either a list of values,
@@ -185,16 +187,16 @@ data Args where
 
 instance Show Args where
    show (List args) =
-           if  null args 
+           if  null args
            then "()"
            else  concat [ t : LT.unpack (decodeUtf8 (encode x))
-                        | (t,x) <- ('(':repeat ',') `zip` args 
+                        | (t,x) <- ('(':repeat ',') `zip` args
                         ] ++ ")"
    show (Named args) =
-           if  null args 
+           if  null args
            then "{}"
            else  concat [ t : show i ++ ":" ++ LT.unpack (decodeUtf8 (encode v))
-                        | (t,(i,v)) <- ('{':repeat ',') `zip` args 
+                        | (t,(i,v)) <- ('{':repeat ',') `zip` args
                         ] ++ "}"
 
    show None = ""
@@ -203,7 +205,7 @@ instance ToJSON Args where
   toJSON (List a)    = Array (V.fromList a)
   toJSON (Named ivs) = object [ i .= v | (i,v) <- ivs ]
   toJSON None       = Null
-  
+
 instance FromJSON Args where
   parseJSON (Array a)   = return $ List (V.toList a)
   parseJSON (Object fm) = return $ Named (HM.toList fm)
@@ -212,16 +214,16 @@ instance FromJSON Args where
 
 newtype Tag = Tag Value deriving Show
 
-instance FromJSON Tag where           
+instance FromJSON Tag where
   parseJSON (Object o) = Tag <$> o .: "id"
   parseJSON _ = fail "not an Object when parsing a Tag"
- 
+
 -- | internal. Used for error message.
 data ErrorMessage = ErrorMessage Int Text
   deriving Show
 
 instance ToJSON ErrorMessage where
-  toJSON (ErrorMessage code msg) = object 
+  toJSON (ErrorMessage code msg) = object
           [ "code"  .= code
           , "message" .= msg
           ]
@@ -233,7 +235,7 @@ instance FromJSON ErrorMessage where
   parseJSON _ = fail "not an Object when parsing an ErrorMessage"
 
 -- | internal. Used for responses.
-data Response 
+data Response
         = Response Value             Value
         | ErrorResponse ErrorMessage Value
   deriving Show
@@ -251,7 +253,7 @@ instance ToJSON Response where
                 ]
 
 instance FromJSON Response where
-  parseJSON (Object o) = 
+  parseJSON (Object o) =
           pure Response   <* (o .: "jsonrpc" :: Parser String)   -- TODO: check this returns "2.0"
                           <*> o .: "result"
                           <*> o .: "id"

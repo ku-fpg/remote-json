@@ -1,13 +1,13 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE RecursiveDo           #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
 
 {-|
 Module:      Control.Remote.Monad.JSON where
@@ -27,41 +27,45 @@ module Control.Remote.Monad.JSON (
         send,
         Session,
         weakSession,
-        strongSession,
+--        strongSession,
         applicativeSession,
         SendAPI(..),
         -- * Types
         Args(..)
   ) where
 
-import           Control.Remote.Monad.JSON.Types
-import           Control.Natural
 import           Control.Monad.State
+import           Control.Natural
+import           Control.Remote.Monad.JSON.Types
 
-import           Data.Aeson
-import           Data.Text(Text)
 import           Control.Remote.Monad
-import qualified Control.Remote.Monad.Packet.Weak as WP
-import qualified Control.Remote.Monad.Packet.Strong as SP
-import qualified Control.Remote.Monad.Packet.Applicative as AP
-import qualified Data.HashMap.Strict as HM
+import qualified Control.Remote.Packet.Weak        as WP
+import           Data.Aeson
+import           Data.Text                         (Text)
+--import qualified Control.Remote.Packet.Strong as SP
+import qualified Control.Remote.Packet.Applicative as AP
+import qualified Data.HashMap.Strict               as HM
 
 -- | Sets up a JSON-RPC method call with the function name and arguments
 method :: FromJSON a => Text -> Args -> RPC a
-method nm args = RPC $ procedure $ Method nm args
+method nm args = RPC $ primitive $ Method nm args
 
 -- | Sets up a JSON-RPC notification call with the function name and arguments
 notification :: Text -> Args -> RPC ()
-notification nm args = RPC $ command $ Notification nm args
+notification nm args = RPC $ primitive $ Notification nm args
 
-runWeakRPC :: (SendAPI ~> IO) -> WP.WeakPacket Notification Method a -> IO a
-runWeakRPC f (WP.Command n)   = f (Async (toJSON $ NotificationCall $ n))
-runWeakRPC f (WP.Procedure m) = do
-          let tid = 1
-          v <- f (Sync (toJSON $ mkMethodCall m  tid))
-          res <- parseReply v
-          parseMethodResult m tid res
-
+runWeakRPC :: forall a . (SendAPI ~> IO) -> WP.WeakPacket Prim a -> IO a
+runWeakRPC f (WP.Primitive m) =
+          case knownResult m of
+            Just () -> do
+                        x <- f (Async (toJSON $ NotificationCall $ m))
+                        return x
+            Nothing -> do
+              let tid = 1
+              v <- f (Sync (toJSON $ mkMethodCall m  tid))
+              res <- parseReply v
+              parseMethodResult m tid res
+{-
 runStrongRPC :: (SendAPI ~> IO) -> SP.StrongPacket Notification Method a ->  IO a
 runStrongRPC f packet = go  packet ([]++)
       where
@@ -77,7 +81,7 @@ runStrongRPC f packet = go  packet ([]++)
                             res <- sendBatchSync f toSend
                             parseMethodResult m tid res
 
-
+-}
 sendBatchAsync :: (SendAPI ~> IO) -> [Value] -> IO ()
 sendBatchAsync _ []  = return ()             -- never send empty packet
 sendBatchAsync f [x] = f (Async x)           -- send singleton packet
@@ -87,9 +91,9 @@ sendBatchAsync f xs  = f (Async (toJSON xs)) -- send batch packet
 sendBatchSync :: (SendAPI ~> IO) -> [Value] -> IO (HM.HashMap IDTag Value)
 sendBatchSync f xs  = f (Sync (toJSON xs)) >>= parseReply -- send batch packet
 
-runApplicativeRPC :: (SendAPI ~> IO) -> AP.ApplicativePacket Notification Method a -> IO a
+runApplicativeRPC :: (SendAPI ~> IO) -> AP.ApplicativePacket Prim a -> IO a
 runApplicativeRPC f packet = do
-                   case AP.superCommand packet of
+                   case knownResult packet of
                      Just a -> do () <- sendBatchAsync f (map toJSON $ ls0 [])
                                   return a
                      Nothing ->  do
@@ -99,7 +103,7 @@ runApplicativeRPC f packet = do
       where
             (ls0,ff0) = evalState (go packet) 1
 
-            go:: forall a . AP.ApplicativePacket Notification Method a
+            go:: forall a . AP.ApplicativePacket Prim a
                   -> State IDTag ([JSONCall]->[JSONCall], HM.HashMap IDTag Value -> IO a)
 
             go (AP.Zip comb g h)    = do
@@ -107,8 +111,9 @@ runApplicativeRPC f packet = do
                                      (ls2,h') <- go h
                                      return ( (ls1 .ls2), \mp -> comb <$> g' mp <*> h' mp)
             go (AP.Pure     a )  = return (([]++), \_ -> return a)
-            go (AP.Command   n)  = return (([NotificationCall n]++), \_ -> return ())
-            go (AP.Procedure m)  = do
+            go (AP.Primitive m)  = case knownResult m of
+                                     Just _ -> return (([NotificationCall m]++), \_ -> return ())
+                                     Nothing -> do
                                        tid <-get
                                        put (succ tid)
                                        return (([mkMethodCall m tid]++)
@@ -119,12 +124,12 @@ runApplicativeRPC f packet = do
 -- and sends each Notification and Method one at a time
 weakSession :: (SendAPI :~> IO) -> Session
 weakSession f = Session $ runMonad (wrapNT $ runWeakRPC (unwrapNT f))
-
+{-
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles Notifications together terminated by an optional Method
 strongSession :: (SendAPI :~> IO) -> Session
 strongSession f = Session $ runMonad (wrapNT $ runStrongRPC (unwrapNT f))
-
+-}
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles together Notifications and Procedures that are used in
 -- Applicative calls

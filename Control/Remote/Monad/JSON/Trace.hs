@@ -1,12 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeOperators         #-}
 
 {-|
 Module:      Control.Remote.Monad.JSON.Debug where
@@ -19,15 +19,15 @@ Portability: GHC
 
 module Control.Remote.Monad.JSON.Trace where
 
-import           Control.Remote.Monad.JSON.Types
-import           Control.Remote.Monad.JSON.Router (Call(..))
-import           Control.Monad.IO.Class(MonadIO,liftIO)
+import           Control.Monad.IO.Class           (MonadIO, liftIO)
 import           Control.Natural
+import           Control.Remote.Monad.JSON.Router (Call (..))
+import           Control.Remote.Monad.JSON.Types
 
 
 import           Data.Aeson
-import qualified Data.Text.Lazy as LT
-import           Data.Text.Lazy.Encoding(decodeUtf8)
+import qualified Data.Text.Lazy                   as LT
+import           Data.Text.Lazy.Encoding          (decodeUtf8)
 
 
 -- | A tracing natural transformation morphism over the Session API.
@@ -58,7 +58,7 @@ traceReceiveAPI msg f = wrapNT $ \ (Receive v) -> do
 traceCallAPI :: MonadIO m => String -> (Call :~> m) -> (Call :~> m)
 traceCallAPI msg f = wrapNT $ \ case
   p@(CallMethod nm args) -> do
-          let method = Method nm args :: Method Value
+          let method = Method nm args :: Prim Value
           liftIO $ putStrLn $ msg ++ " method " ++ show method
           r <- f # p
           liftIO $ putStrLn $ msg ++ " return " ++ LT.unpack (decodeUtf8 (encode r))
