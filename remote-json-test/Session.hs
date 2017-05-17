@@ -1,26 +1,26 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module Session (sessionBuilders,routerBuilders) where
 
-import Control.Remote.Monad.JSON
-import Control.Remote.Monad.JSON.Trace
-import Control.Remote.Monad.JSON.Router
-import Data.Monoid
-import Data.Aeson
-import Data.Text (pack)
-import qualified Data.Text.IO as IO
-import System.Random
-import Data.Scientific as Scientific
-import Control.Natural
+import           Control.Natural
+import           Control.Remote.Monad.JSON
+import           Control.Remote.Monad.JSON.Router
+import           Control.Remote.Monad.JSON.Trace
+import           Data.Aeson
+import           Data.Monoid
+import           Data.Scientific                  as Scientific
+import           Data.Text                        (pack)
+import qualified Data.Text.IO                     as IO
+import           System.Random
 
 sessionBuilders :: [(SendAPI :~> IO) -> Session]
 sessionBuilders =
   [ f . t
-  | f :: (SendAPI :~> IO) -> Session <- [ weakSession, strongSession, applicativeSession ]
+  | f :: (SendAPI :~> IO) -> Session <- [ weakSession, {-strongSession,-} applicativeSession ]
   , t <- [ id
          , traceSendAPI "send"
          ]

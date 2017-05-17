@@ -55,16 +55,16 @@ notification :: Text -> Args -> RPC ()
 notification nm args = RPC $ primitive $ Notification nm args
 
 runWeakRPC :: forall a . (SendAPI ~> IO) -> WP.WeakPacket Prim a -> IO a
-runWeakRPC f (WP.Primitive m) =
-          case knownResult m of
-            Just () -> do
-                        x <- f (Async (toJSON $ NotificationCall $ m))
-                        return x
-            Nothing -> do
-              let tid = 1
-              v <- f (Sync (toJSON $ mkMethodCall m  tid))
-              res <- parseReply v
-              parseMethodResult m tid res
+runWeakRPC f (WP.Primitive m) = do
+              case knownResult m of
+                Just a -> do
+                            () <- f $ Async $ toJSON $ NotificationCall m
+                            return a
+                Nothing -> do
+                  let tid = 1
+                  v <- f (Sync (toJSON $ mkMethodCall m  tid))
+                  res <- parseReply v
+                  parseMethodResult m tid res
 {-
 runStrongRPC :: (SendAPI ~> IO) -> SP.StrongPacket Notification Method a ->  IO a
 runStrongRPC f packet = go  packet ([]++)
@@ -111,9 +111,8 @@ runApplicativeRPC f packet = do
                                      (ls2,h') <- go h
                                      return ( (ls1 .ls2), \mp -> comb <$> g' mp <*> h' mp)
             go (AP.Pure     a )  = return (([]++), \_ -> return a)
-            go (AP.Primitive m)  = case knownResult m of
-                                     Just _ -> return (([NotificationCall m]++), \_ -> return ())
-                                     Nothing -> do
+            go (AP.Primitive m@(Notification{})) =  return (([NotificationCall m]++), \_ -> return ())
+            go (AP.Primitive m@(Method{})) =  do
                                        tid <-get
                                        put (succ tid)
                                        return (([mkMethodCall m tid]++)

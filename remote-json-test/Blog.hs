@@ -1,29 +1,29 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeOperators       #-}
 
 
 module Main where
 
-import Session
+import           Session
 
-import Control.Remote.Monad.JSON
-import Control.Remote.Monad.JSON.Client
-import Control.Remote.Monad.JSON.Router
-import Control.Remote.Monad.JSON.Server
-import Control.Remote.Monad.JSON.Trace
-import Control.Natural
-import Control.Concurrent (forkIO,threadDelay)
+import           Control.Concurrent               (forkIO, threadDelay)
+import           Control.Natural
+import           Control.Remote.Monad.JSON
+import           Control.Remote.Monad.JSON.Client
+import           Control.Remote.Monad.JSON.Router
+import           Control.Remote.Monad.JSON.Server
+import           Control.Remote.Monad.JSON.Trace
 
-import Data.Aeson.Types
-import Data.Monoid
-import Data.Text (Text, pack)
-import qualified Data.Text.IO as IO
+import           Data.Aeson.Types
+import           Data.Monoid
+import           Data.Text                        (Text, pack)
+import qualified Data.Text.IO                     as IO
 
-import System.Random
-import Data.Scientific as Scientific
+import           Data.Scientific                  as Scientific
+import           System.Random
 
 main = do
   forkIO $ serverReceiveAPI 4001 "/wobble" $ router sequence $ wrapNT remote
@@ -39,7 +39,7 @@ main = do
           return (t,u)
   print t
   print u
-
+{-
   putStrLn "Strong Bundle"
   let s = strongSession (traceSendAPI "" $ clientSendAPI "http://localhost:4001/wobble")
   (t,u) <- send s $ do
@@ -50,7 +50,7 @@ main = do
           return (t,u)
   print t
   print u
-
+-}
   putStrLn "Ap Bundle"
   let s = applicativeSession (traceSendAPI "" $ clientSendAPI "http://localhost:4001/wobble")
   (t,u) <- send s $

@@ -1,5 +1,5 @@
 name:                remote-json-client
-version:             0.2.1
+version:             0.3
 synopsis:            Web client wrapper for remote-json
 description:         Web client, using wreq, for the JSON RPC protocol.
 license:             BSD3
@@ -26,7 +26,7 @@ library
                      , lens		      >= 4.5
                      , wreq		      >= 0.4.1.0 && < 0.6
                      , natural-transformation >= 0.4   && < 0.5
-                     , remote-json            >= 0.2 && < 0.3
+                     , remote-json            >= 0.3 && < 0.4
   hs-source-dirs:      .
   default-language:    Haskell2010
   ghc-options:         -Wall
