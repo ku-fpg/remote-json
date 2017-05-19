@@ -37,7 +37,6 @@ resolver: lts-8.13
 # will not be run. This is useful for tweaking upstream packages.
 packages: 
   - '.'
-  - 'remote-json-client/'
   - location:
       git: 'git@github.com:ku-fpg/remote-monad'
       commit: 'd39fa'

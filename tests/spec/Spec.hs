@@ -1,25 +1,21 @@
+{-# LANGUAGE GADTs             #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes        #-}
 
 module Main where
 
 import           Control.Natural
 import           Data.Aeson
-import           Data.Aeson.Types
-import           Data.Maybe
 
-import           Data.Text(Text, append, pack, unpack)
-import qualified Data.Text.IO as TIO
-import qualified Data.Text.Lazy as LT
-import           Data.Text.Lazy.Encoding(decodeUtf8)
+import qualified Data.Text.IO                     as TIO
+import qualified Data.Text.Lazy                   as LT
+import           Data.Text.Lazy.Encoding          (decodeUtf8)
 
-import           Control.Monad (when)
-import           Control.Remote.Monad.JSON.Router
+import           Control.Monad                    (when)
 import           Control.Remote.Monad.JSON
-import           Data.Attoparsec.ByteString
+import           Control.Remote.Monad.JSON.Router
 import           System.Exit
-import           Test (readTests, Test(..))
+import           Test                             (Test (..), readTests)
 
 f :: Call a -> IO a
 f (CallMethod "subtract" (List [Number a,Number b])) = return $ Number (a - b)

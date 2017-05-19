@@ -1,21 +1,16 @@
+{-# LANGUAGE GADTs             #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes        #-}
 
 module Test where
 
-import           Data.Aeson
-import           Data.Aeson.Parser
-import           Data.Maybe
 import           Control.Applicative
+import           Data.Aeson
 
-import           Data.Text(Text, append, pack, unpack)
-import qualified Data.Text.Lazy as LT
-import           Data.Text.Encoding(decodeUtf8)
-import qualified Data.ByteString as BS
+import qualified Data.ByteString            as BS
+import           Data.Text                  (Text)
+import           Data.Text.Encoding         (decodeUtf8)
 
-import           Control.Monad
-import           Control.Remote.Monad.JSON.Router
 import           Data.Attoparsec.ByteString hiding (parseTest)
 
 
@@ -32,8 +27,8 @@ parseTest :: Parser Test
 parseTest = do
         title <- lexeme (string "#" *> some (satisfy (notInClass "\n")))
         ts <- many $ do
-                lexeme (string "-->") 
-                req <- Right <$> json' 
+                lexeme (string "-->")
+                req <- Right <$> json'
                         <|> (Left . decodeUtf8 . BS.pack) <$> some (satisfy (notInClass "<"))
                 res <- optional (lexeme (string "<--") *> json')
                 return $ (req,res)
