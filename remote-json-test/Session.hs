@@ -20,7 +20,7 @@ import           System.Random
 sessionBuilders :: [(SendAPI :~> IO) -> Session]
 sessionBuilders =
   [ f . t
-  | f :: (SendAPI :~> IO) -> Session <- [ weakSession, {-strongSession,-} applicativeSession ]
+  | f :: (SendAPI :~> IO) -> Session <- [ weakSession, strongSession, applicativeSession ]
   , t <- [ id
          , traceSendAPI "send"
          ]
@@ -47,7 +47,7 @@ remote (CallMethod "fib" args) = case args of
     List [Number n] -> do
         case toBoundedInteger n of
           Just i -> return $ Number $ fromIntegral $ fib $ i
-          _ -> invalidParams
+          _      -> invalidParams
     _ ->  invalidParams
   where fib :: Int -> Int
         fib n = if n < 2 then 1 else fib(n-1)+fib(n-2)

@@ -27,7 +27,7 @@ module Control.Remote.Monad.JSON (
         send,
         Session,
         weakSession,
---        strongSession,
+        strongSession,
         applicativeSession,
         SendAPI(..),
         -- * Types
@@ -39,12 +39,12 @@ import           Control.Natural
 import           Control.Remote.Monad.JSON.Types
 
 import           Control.Remote.Monad
+import qualified Control.Remote.Packet.Applicative as AP
+import qualified Control.Remote.Packet.Strong      as SP
 import qualified Control.Remote.Packet.Weak        as WP
 import           Data.Aeson
-import           Data.Text                         (Text)
---import qualified Control.Remote.Packet.Strong as SP
-import qualified Control.Remote.Packet.Applicative as AP
 import qualified Data.HashMap.Strict               as HM
+import           Data.Text                         (Text)
 
 -- | Sets up a JSON-RPC method call with the function name and arguments
 method :: FromJSON a => Text -> Args -> RPC a
@@ -65,11 +65,11 @@ runWeakRPC f (WP.Primitive m) = do
                   v <- f (Sync (toJSON $ mkMethodCall m  tid))
                   res <- parseReply v
                   parseMethodResult m tid res
-{-
-runStrongRPC :: (SendAPI ~> IO) -> SP.StrongPacket Notification Method a ->  IO a
+
+runStrongRPC :: (SendAPI ~> IO) -> SP.StrongPacket Prim a ->  IO a
 runStrongRPC f packet = go  packet ([]++)
       where
-            go :: forall a . SP.StrongPacket Notification Method a -> ([Notification]->[Notification]) -> IO a
+            go :: forall a . SP.StrongPacket Prim a -> ([Prim ()]->[Prim ()]) -> IO a
             go  (SP.Command n cs) ls =  go cs (ls . ([n] ++))
             go (SP.Done) ls = do
                              let toSend = (map(toJSON . NotificationCall) (ls []))
@@ -81,7 +81,7 @@ runStrongRPC f packet = go  packet ([]++)
                             res <- sendBatchSync f toSend
                             parseMethodResult m tid res
 
--}
+
 sendBatchAsync :: (SendAPI ~> IO) -> [Value] -> IO ()
 sendBatchAsync _ []  = return ()             -- never send empty packet
 sendBatchAsync f [x] = f (Async x)           -- send singleton packet
@@ -123,12 +123,12 @@ runApplicativeRPC f packet = do
 -- and sends each Notification and Method one at a time
 weakSession :: (SendAPI :~> IO) -> Session
 weakSession f = Session $ runMonad (wrapNT $ runWeakRPC (unwrapNT f))
-{-
+
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles Notifications together terminated by an optional Method
 strongSession :: (SendAPI :~> IO) -> Session
 strongSession f = Session $ runMonad (wrapNT $ runStrongRPC (unwrapNT f))
--}
+
 -- | Takes a function that handles the sending of Async and Sync messages,
 -- and bundles together Notifications and Procedures that are used in
 -- Applicative calls

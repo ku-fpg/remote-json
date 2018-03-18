@@ -46,7 +46,8 @@ module Control.Remote.Monad.JSON.Types (
 
 import           Control.Applicative
 import           Control.Natural
-import           Control.Remote.Monad    (KnownResult (..), RemoteMonad)
+import           Control.Remote.Monad    (KnownResult (..), RemoteMonad,
+                                          Result (..))
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -67,6 +68,8 @@ instance KnownResult Prim where
   knownResult (Notification {}) = Just ()
   knownResult (Method {})       = Nothing
 
+  unitResult Notification {} = UnitResult
+  unitResult Method {}       = UnknownResult
 
 deriving instance Show (Prim a)
 
@@ -91,7 +94,7 @@ mkMethodCall (Notification nm args) tag = MethodCall (Method nm args :: Prim ())
 parseReply :: Monad m => Value -> m Replies
 parseReply v =  case fromJSON v of
                   Success (rs :: [Value]) -> return $ results rs
-                  _ ->  return $ results [v]
+                  _                       ->  return $ results [v]
 
                  where
                    results :: [Value] -> HM.HashMap IDTag Value
@@ -204,7 +207,7 @@ instance Show Args where
 instance ToJSON Args where
   toJSON (List a)    = Array (V.fromList a)
   toJSON (Named ivs) = object [ i .= v | (i,v) <- ivs ]
-  toJSON None       = Null
+  toJSON None        = Null
 
 instance FromJSON Args where
   parseJSON (Array a)   = return $ List (V.toList a)
@@ -216,7 +219,7 @@ newtype Tag = Tag Value deriving Show
 
 instance FromJSON Tag where
   parseJSON (Object o) = Tag <$> o .: "id"
-  parseJSON _ = fail "not an Object when parsing a Tag"
+  parseJSON _          = fail "not an Object when parsing a Tag"
 
 -- | internal. Used for error message.
 data ErrorMessage = ErrorMessage Int Text

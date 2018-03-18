@@ -39,7 +39,7 @@ main = do
           return (t,u)
   print t
   print u
-{-
+
   putStrLn "Strong Bundle"
   let s = strongSession (traceSendAPI "" $ clientSendAPI "http://localhost:4001/wobble")
   (t,u) <- send s $ do
@@ -50,7 +50,7 @@ main = do
           return (t,u)
   print t
   print u
--}
+
   putStrLn "Ap Bundle"
   let s = applicativeSession (traceSendAPI "" $ clientSendAPI "http://localhost:4001/wobble")
   (t,u) <- send s $

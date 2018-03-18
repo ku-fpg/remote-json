@@ -19,8 +19,6 @@ Stability:   Experimental
 module Main (main) where
 
 import           Data.Aeson                       (Value (..), toJSON)
-import           Data.Foldable                    (toList)
-import           Data.Sequence                    (Seq, fromList)
 
 import           Control.Natural                  (wrapNT)
 import qualified Control.Remote.Monad.JSON        as JSON
@@ -70,7 +68,7 @@ runCall tr ref (R.CallMethod "pop" _) = do
           modifyIORef tr ((show x) :)
           return (Just (unA x))
     return $ toJSON res
-runCall tr ref _ = R.methodNotFound
+runCall _ _ _ = R.methodNotFound
 
 ----------------------------------------------------------------
 -- The different ways of running remote monads.
@@ -83,7 +81,7 @@ instance Show RemoteMonad where
 instance Arbitrary RemoteMonad where
   arbitrary = elements
     [ runWeakRPC
---    , runStrongRPC
+    , runStrongRPC
     , runApplicativeRPC
     ]
 
@@ -92,11 +90,11 @@ instance Arbitrary RemoteMonad where
 runWeakRPC :: RemoteMonad
 runWeakRPC = RemoteMonad "WeakPacket"
   $ \ tr ref -> JSON.send (JSON.weakSession (R.transport (R.router sequence (wrapNT $ runCall tr ref))))
-{-
+
 runStrongRPC :: RemoteMonad
 runStrongRPC = RemoteMonad "StrongPacket"
   $ \ tr ref -> JSON.send (JSON.strongSession (R.transport (R.router sequence (wrapNT $ runCall tr ref))))
--}
+
 runApplicativeRPC :: RemoteMonad
 runApplicativeRPC = RemoteMonad "ApplicativePacket"
   $ \ tr ref -> JSON.send (JSON.applicativeSession (R.transport (R.router sequence (wrapNT $ runCall tr ref))))
@@ -228,7 +226,7 @@ prop_pop runMe xs = monadicIO $ do
     r   <- run $ sendM dev pop
     ys  <- run $ readDevice  dev
     case xs of
-      [] -> assert (r == Nothing && ys == [])
+      []       -> assert (r == Nothing && ys == [])
       (x':xs') -> assert (r == Just x' && ys == xs')
 
 -- Check that two remote monad configurations given the same trace and same result

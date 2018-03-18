@@ -39,7 +39,7 @@ packages:
   - '.'
   - location:
       git: 'git@github.com:ku-fpg/remote-monad'
-      commit: 'd39fa'
+      commit: '03f2e83'
     extra-dep: true
 # The following packages have been ignored due to incompatibility with the
 # resolver compiler, dependency conflicts with other packages
